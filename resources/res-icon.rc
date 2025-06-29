@@ -1,0 +1,4 @@
+// res-icon.rc
+#include "res-icon.h"
+
+IDI_MYAPP ICON ICON_FILE

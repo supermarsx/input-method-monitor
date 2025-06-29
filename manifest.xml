@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <!-- Application Identity -->
+  <assemblyIdentity
+    version="1.0.0.0"
+    processorArchitecture="*"
+    name="kbdlayoutmon"
+    type="win32"/>
+
+  <!-- Description -->
+  <description>Keyboard Layout Monitor</description>
+
+  <!-- Compatibility -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows OS Versions -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/> <!-- Windows 10 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/> <!-- Windows 8.1 -->
+      <supportedOS Id="{4f4aab2d-4532-4dad-bc91-5e6e1d192fb1}"/> <!-- Windows 8 -->
+      <supportedOS Id="{6f330b47-2577-4c18-a96e-f5a7b0f67d61}"/> <!-- Windows 7 -->
+      <supportedOS Id="{e2011457-1546-43c5-a5fe-008deee3d3f0}"/> <!-- Windows Vista -->
+      <supportedOS Id="{1e197b7b-2367-4f05-9a6e-2e4f3b05e8e9}"/> <!-- Windows XP -->
+    </application>
+  </compatibility>
+
+  <!-- DPI Awareness -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+    </windowsSettings>
+  </application>
+
+  <!-- Requested Privileges -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel
+          level="asInvoker"
+          uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+
+  <!-- Dependency on Common Controls -->
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"/>
+    </dependentAssembly>
+  </dependency>
+
+</assembly>
