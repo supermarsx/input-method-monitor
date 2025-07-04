@@ -1,4 +1,10 @@
-Log::write(const wchar_t* message) {
+// log.cpp
+#include <windows.h>
+#include <fstream>
+#include <Shlwapi.h>
+#include <mutex>
+
+void Log::write(const wchar_t* message) {
     if (!g_debugEnabled) return; // Exit if debug is not enabled
 
     std::lock_guard<std::mutex> guard(g_mutex);

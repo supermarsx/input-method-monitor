@@ -1,5 +1,5 @@
 class Log {
     public:
 
-    void write(wchar_t*);
-}
+    void write(const wchar_t*);
+};
