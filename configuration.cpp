@@ -16,7 +16,7 @@ public:
         wchar_t configPath[MAX_PATH];
         GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
         PathRemoveFileSpecW(configPath);
-        PathCombineW(configPath, configPath, configFile.c_str());
+        PathCombineW(configPath, configPath, CONFIG_FILE);
 
         std::wifstream configFile(configPath);
         if (configFile.is_open()) {

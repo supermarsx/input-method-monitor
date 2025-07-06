@@ -7,6 +7,7 @@
 #include <sstream>
 #include <shellapi.h>
 #include "res-icon.h"  // Include the resource header
+#include "constants.h"
 
 #define TRAY_ICON_ID 1001
 #define WM_TRAYICON (WM_USER + 1)
@@ -71,7 +72,7 @@ void LoadConfiguration() {
     wchar_t configPath[MAX_PATH];
     GetModuleFileName(g_hInst, configPath, MAX_PATH);
     PathRemoveFileSpec(configPath);
-    PathCombine(configPath, configPath, L"kbdlayoutmon.config");
+    PathCombine(configPath, configPath, CONFIG_FILE);
 
     std::wifstream configFile(configPath);
     if (configFile.is_open()) {

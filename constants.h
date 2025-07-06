@@ -1,4 +1,4 @@
 #pragma once
-#include <string>
 
-std::wstring configFile = L"kbdlayoutmon.config";
+// Name of the configuration file located next to the executable
+constexpr wchar_t CONFIG_FILE[] = L"kbdlayoutmon.config";
