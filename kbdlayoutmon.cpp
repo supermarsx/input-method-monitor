@@ -7,6 +7,7 @@
 #include <sstream>
 #include <shellapi.h>
 #include "res-icon.h"  // Include the resource header
+#include "configuration.h"
 
 #define TRAY_ICON_ID 1001
 #define WM_TRAYICON (WM_USER + 1)
@@ -66,30 +67,7 @@ void WriteLog(const wchar_t* message) {
     }
 }
 
-// Function to load configuration from a file
-void LoadConfiguration() {
-    wchar_t configPath[MAX_PATH];
-    GetModuleFileName(g_hInst, configPath, MAX_PATH);
-    PathRemoveFileSpec(configPath);
-    PathCombine(configPath, configPath, L"kbdlayoutmon.config");
 
-    std::wifstream configFile(configPath);
-    if (configFile.is_open()) {
-        std::wstring line;
-        while (std::getline(configFile, line)) {
-            if (line == L"DEBUG=1") {
-                g_debugEnabled = true;
-            } else if (line == L"DEBUG=0") {
-                g_debugEnabled = false;
-            } else if (line == L"TRAY_ICON=1") {
-                g_trayIconEnabled = true;
-            } else if (line == L"TRAY_ICON=0") {
-                g_trayIconEnabled = false;
-            }
-        }
-        configFile.close();
-    }
-}
 
 // Helper function to check if app is set to launch at startup
 bool IsStartupEnabled() {
@@ -399,8 +377,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     g_hInst = hInstance;
 
-    // Load the configuration file
-    LoadConfiguration();
+    // Load configuration using the shared Configuration class
+    Configuration config;
+    config.load();
+    g_debugEnabled = config.settings[L"debug"] == L"1";
+    if (config.settings.count(L"tray_icon")) {
+        g_trayIconEnabled = config.settings[L"tray_icon"] != L"0";
+    }
 
     WriteLog(L"Executable started.");
 
