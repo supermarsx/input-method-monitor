@@ -35,7 +35,22 @@ void Configuration::load() {
         std::wstring key = line.substr(0, eqPos);
         std::wstring value = line.substr(eqPos + 1);
 
-        std::transform(key.begin(), key.end(), key.begin(), [](wchar_t c) { return std::towlower(c); });
+        auto trim = [](std::wstring &s) {
+            size_t start = s.find_first_not_of(L" \t\r\n");
+            size_t end = s.find_last_not_of(L" \t\r\n");
+            if (start == std::wstring::npos) {
+                s.clear();
+            } else {
+                s = s.substr(start, end - start + 1);
+            }
+        };
+
+        trim(key);
+        trim(value);
+
+        std::transform(key.begin(), key.end(), key.begin(), [](wchar_t c) {
+            return std::towlower(c);
+        });
         settings[key] = value;
     }
 }
