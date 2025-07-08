@@ -9,7 +9,7 @@
 #define VER_INTERNALNAME_STR        "kbdlayoutmon"
 #define VER_PRODUCTNAME_STR         "Keyboard Layout Monitor"
 
-#define VER_ORIGINALFILENAME_STR    "tsfhook"
+#define VER_ORIGINALFILENAME_STR    "kbdlayoutmonhook.dll"
 
 #define VOS__WINDOWS32              0x00000004L
 #define VFT_APP                     0x00000001L
