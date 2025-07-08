@@ -45,6 +45,7 @@ bool g_startupEnabled = false; // Global variable to track startup status
 bool g_languageHotKeyEnabled = false; // Global variable to track Language HotKey status
 bool g_layoutHotKeyEnabled = false; // Global variable to track Layout HotKey status
 bool g_tempHotKeysEnabled = false; // Global flag to track temporary hotkeys status
+DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseconds
 NOTIFYICONDATA nid;
 
 
@@ -227,8 +228,8 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
         ReleaseMutex(g_hMutex);
 
-        // Set a timer to revert changes after 10 seconds
-        SetTimer(hwnd, 1, 10000, NULL);
+        // Set a timer to revert changes after configured timeout
+        SetTimer(hwnd, 1, g_tempHotKeyTimeout, NULL);
     } else {
         WriteLog(L"Failed to open registry key for temporarily enabling hotkeys.");
     }
@@ -370,6 +371,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_debugEnabled = config.settings[L"debug"] == L"1";
     if (config.settings.count(L"tray_icon")) {
         g_trayIconEnabled = config.settings[L"tray_icon"] != L"0";
+    }
+    if (config.settings.count(L"temp_hotkey_timeout")) {
+        g_tempHotKeyTimeout = std::wcstoul(config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
     }
 
     WriteLog(L"Executable started.");
