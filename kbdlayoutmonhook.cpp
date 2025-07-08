@@ -40,11 +40,6 @@ void WriteLog(const std::wstring& message) {
     g_log.write(message);
 }
 
-// Function to load configuration using the shared Configuration class
-void LoadConfiguration() {
-    g_config.load();
-    g_debugEnabled = g_config.settings[L"debug"] == L"1";
-}
 
 // Function to get the KLID in the format "00000409"
 std::wstring GetKLID(HKL hkl) {
@@ -191,7 +186,6 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 // Function to install the global hook
 extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
-    LoadConfiguration();
     if (g_lastHKL == NULL) {
         g_lastHKL = GetKeyboardLayout(0);
     }
@@ -285,7 +279,8 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
-            LoadConfiguration();
+            g_config.load();
+            g_debugEnabled = g_config.settings[L"debug"] == L"1";
             break;
         case DLL_PROCESS_DETACH:
             if (g_hMutex)
