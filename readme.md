@@ -19,6 +19,7 @@ Configuration is read from `kbdlayoutmon.config` located next to the executable.
 DEBUG=1       # Enable debug logging (0 to disable)
 TRAY_ICON=1   # Show the tray icon (0 to run without it)
 TEMP_HOTKEY_TIMEOUT=10000 # Milliseconds for temporary hotkeys to remain enabled
+LOG_PATH=path\to\logfile # Optional custom log file location
 ```
 
 ## Build
