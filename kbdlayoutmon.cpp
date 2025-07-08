@@ -25,6 +25,7 @@
 HINSTANCE g_hInst = NULL;
 HMODULE g_hDll = NULL;
 HANDLE g_hMutex = NULL;  // Declare the mutex handle
+HANDLE g_hInstanceMutex = NULL; // Mutex to enforce single instance
 typedef BOOL(*InstallGlobalHookFunc)();
 typedef void(*UninstallGlobalHookFunc)();
 typedef void(*SetLanguageHotKeyEnabledFunc)(bool);
@@ -384,6 +385,16 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     g_hInst = hInstance;
 
+    // Create a named mutex to ensure a single instance
+    g_hInstanceMutex = CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton");
+    if (g_hInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        WriteLog(L"Another instance is already running.");
+        MessageBox(NULL, L"Another instance is already running.", L"Input Method Monitor", MB_ICONEXCLAMATION | MB_OK);
+        ReleaseMutex(g_hInstanceMutex);
+        CloseHandle(g_hInstanceMutex);
+        return 0;
+    }
+
     // Load configuration before any logging occurs
     g_config.load();
     g_debugEnabled = g_config.settings[L"debug"] == L"1";
@@ -431,6 +442,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wstringstream ss;
         ss << L"Failed to register window class. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str().c_str());
+        if (g_hInstanceMutex) {
+            ReleaseMutex(g_hInstanceMutex);
+            CloseHandle(g_hInstanceMutex);
+        }
         return 1;
     }
 
@@ -452,6 +467,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wstringstream ss;
         ss << L"Failed to create message-only window. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str().c_str());
+        if (g_hInstanceMutex) {
+            ReleaseMutex(g_hInstanceMutex);
+            CloseHandle(g_hInstanceMutex);
+        }
         return 1;
     }
 
@@ -465,6 +484,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         std::wstringstream ss;
         ss << L"Failed to load kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str().c_str());
+        if (g_hInstanceMutex) {
+            ReleaseMutex(g_hInstanceMutex);
+            CloseHandle(g_hInstanceMutex);
+        }
         return 1;
     }
 
@@ -481,12 +504,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str().c_str());
         FreeLibrary(g_hDll);
+        if (g_hInstanceMutex) {
+            ReleaseMutex(g_hInstanceMutex);
+            CloseHandle(g_hInstanceMutex);
+        }
         return 1;
     }
 
     if (!InstallGlobalHook()) {
         WriteLog(L"Failed to install global hook.");
         FreeLibrary(g_hDll);
+        if (g_hInstanceMutex) {
+            ReleaseMutex(g_hInstanceMutex);
+            CloseHandle(g_hInstanceMutex);
+        }
         return 1;
     }
 
@@ -508,6 +539,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     UninstallGlobalHook();
     FreeLibrary(g_hDll);
     CloseHandle(g_hMutex); // Close the mutex handle
+    if (g_hInstanceMutex) {
+        ReleaseMutex(g_hInstanceMutex);
+        CloseHandle(g_hInstanceMutex);
+    }
     WriteLog(L"Executable stopped.");
     return static_cast<int>(msg.wParam);
 }
