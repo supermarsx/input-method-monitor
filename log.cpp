@@ -59,6 +59,11 @@ void Log::write(const std::wstring& message) {
 }
 
 void Log::process() {
+    std::wstring path = GetLogPath();
+    m_file.open(path, std::ios::app);
+    if (!m_file.is_open()) {
+        OutputDebugString(L"Failed to open log file.");
+    }
     for (;;) {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cv.wait(lock, [this] { return !m_queue.empty() || !m_running; });
@@ -67,21 +72,21 @@ void Log::process() {
             m_queue.pop();
             lock.unlock();
 
-            std::wstring path = GetLogPath();
-            std::wofstream logFile(path, std::ios::app);
-            if (logFile.is_open()) {
+            if (m_file.is_open()) {
                 SYSTEMTIME st{};
                 GetLocalTime(&st);
                 wchar_t ts[32] = {0};
                 swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-                logFile << ts << L" " << msg << std::endl;
+                m_file << ts << L" " << msg << std::endl;
             } else {
-                OutputDebugString(L"Failed to open log file.");
+                OutputDebugString(L"Failed to write to log file.");
             }
             lock.lock();
         }
         if (!m_running && m_queue.empty())
             break;
     }
+    if (m_file.is_open())
+        m_file.close();
 }
 

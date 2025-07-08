@@ -5,6 +5,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <fstream>
 
 class Log {
 public:
@@ -21,6 +22,7 @@ private:
     std::mutex m_mutex;
     std::condition_variable m_cv;
     std::queue<std::wstring> m_queue;
+    std::wofstream m_file;
     bool m_running = false;
 };
 
