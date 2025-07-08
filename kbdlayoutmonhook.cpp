@@ -172,6 +172,12 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 // Function to install the global hook
 extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
+    LoadConfiguration();
+    if (g_lastHKL == NULL) {
+        g_lastHKL = GetKeyboardLayout(0);
+    }
+    WriteLog(L"DLL loaded.");
+
     g_hHook = SetWindowsHookEx(WH_SHELL, ShellProc, g_hInst, 0);
     if (g_hHook == NULL) {
         DWORD errorCode = GetLastError();
@@ -180,6 +186,7 @@ extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
         WriteLog(ss.str().c_str());
         return FALSE;
     }
+    IncrementRefCount();
     WriteLog(L"Global hook installed successfully.");
     return TRUE;
 }
@@ -197,6 +204,8 @@ extern "C" __declspec(dllexport) void UninstallGlobalHook() {
         }
         g_hHook = NULL;
     }
+    DecrementRefCount();
+    WriteLog(L"DLL unloaded.");
 }
 
 // Increment reference count
@@ -216,10 +225,6 @@ void DecrementRefCount() {
     std::wstringstream ss;
     ss << L"Reference count decremented to " << g_refCount;
     WriteLog(ss.str().c_str());
-    if (g_refCount == 0) {
-        UninstallGlobalHook();
-        WriteLog(L"Cleaning up resources.");
-    }
     ReleaseMutex(g_hMutex);
 }
 
@@ -259,18 +264,10 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
-            LoadConfiguration(); // Load the configuration file
-            IncrementRefCount();
-            WriteLog(L"DLL loaded.");
-            // Initialize the last known layout if it's the first time loading
-            if (g_lastHKL == NULL) {
-                g_lastHKL = GetKeyboardLayout(0);
-            }
             break;
         case DLL_PROCESS_DETACH:
-            DecrementRefCount();
-            CloseHandle(g_hMutex);
-            WriteLog(L"DLL unloaded.");
+            if (g_hMutex)
+                CloseHandle(g_hMutex);
             break;
     }
     return TRUE;
