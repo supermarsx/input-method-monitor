@@ -8,6 +8,9 @@
 #include <sstream>
 #include <iomanip>
 #include <combaseapi.h>
+#include <thread>
+#include <condition_variable>
+#include <queue>
 #include "log.h"
 
 HINSTANCE g_hInst = NULL;
@@ -24,6 +27,12 @@ bool g_layoutHotKeyEnabled = false; // Shared variable for Layout HotKey status
 #pragma comment(linker, "/SECTION:.shared,RWS")
 
 HANDLE g_hMutex = NULL;
+
+std::thread g_workerThread;
+std::mutex g_queueMutex;
+std::condition_variable g_queueCV;
+std::queue<std::pair<std::wstring, std::wstring>> g_taskQueue;
+bool g_workerRunning = false;
 
 // Helper function to write to log file
 void WriteLog(const std::wstring& message) {
@@ -140,6 +149,35 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
     ReleaseMutex(g_hMutex); // Release mutex
 }
 
+void WorkerThread() {
+    for (;;) {
+        std::unique_lock<std::mutex> lock(g_queueMutex);
+        g_queueCV.wait(lock, [] { return !g_taskQueue.empty() || !g_workerRunning; });
+        if (!g_workerRunning && g_taskQueue.empty())
+            break;
+        auto task = std::move(g_taskQueue.front());
+        g_taskQueue.pop();
+        lock.unlock();
+
+        SetDefaultInputMethodInRegistry(task.first, task.second);
+    }
+}
+
+void StartWorkerThread() {
+    g_workerRunning = true;
+    g_workerThread = std::thread(WorkerThread);
+}
+
+void StopWorkerThread() {
+    {
+        std::lock_guard<std::mutex> lock(g_queueMutex);
+        g_workerRunning = false;
+    }
+    g_queueCV.notify_all();
+    if (g_workerThread.joinable())
+        g_workerThread.join();
+}
+
 // Hook procedure to monitor system-wide messages
 LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HSHELL_LANGUAGE) {
@@ -151,7 +189,15 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
             std::wstringstream ss;
             ss << L"Keyboard layout changed. Locale ID: " << localeID << L", KLID: " << klid;
             WriteLog(ss.str().c_str());
-            SetDefaultInputMethodInRegistry(localeID, klid);
+
+            if (!g_workerRunning)
+                StartWorkerThread();
+
+            {
+                std::lock_guard<std::mutex> lock(g_queueMutex);
+                g_taskQueue.emplace(localeID, klid);
+            }
+            g_queueCV.notify_one();
         }
     }
     return CallNextHookEx(g_hHook, nCode, wParam, lParam);
@@ -173,6 +219,7 @@ extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
         WriteLog(ss.str().c_str());
         return FALSE;
     }
+    StartWorkerThread();
     IncrementRefCount();
     WriteLog(L"Global hook installed successfully.");
     return TRUE;
@@ -191,6 +238,7 @@ extern "C" __declspec(dllexport) void UninstallGlobalHook() {
         }
         g_hHook = NULL;
     }
+    StopWorkerThread();
     DecrementRefCount();
     WriteLog(L"DLL unloaded.");
 }
@@ -255,6 +303,7 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_DETACH:
             if (g_hMutex)
                 CloseHandle(g_hMutex);
+            StopWorkerThread();
             break;
     }
     return TRUE;
