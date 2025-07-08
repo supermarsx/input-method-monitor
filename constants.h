@@ -1,4 +1,4 @@
 #pragma once
 #include <string>
 
-std::wstring configFile = L"kbdlayoutmon.config";
+inline const std::wstring configFile = L"kbdlayoutmon.config";
