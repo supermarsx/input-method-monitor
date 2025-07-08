@@ -1,0 +1,11 @@
+# Build artifacts
+/dist/
+*.obj
+*.exp
+*.lib
+*.dll
+*.exe
+*.res
+
+# Logs
+*.log
