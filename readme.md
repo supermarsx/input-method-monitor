@@ -9,6 +9,7 @@ Input Method Monitor is a small Windows utility that keeps your default input me
   - Launch the application at system startup.
   - Toggle Windows "Language" and "Layout" hotkeys.
   - Temporarily enable both hotkeys for a short period.
+  - Open the debug log file when logging is enabled.
   - Restart or exit the application.
 - Optional debug logging to `kbdlayoutmon.log`.
 
