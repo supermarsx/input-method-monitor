@@ -375,6 +375,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         g_tempHotKeyTimeout = std::wcstoul(g_config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
     }
 
+    // Parse command line options after the config file so they override
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    if (argv) {
+        for (int i = 1; i < argc; ++i) {
+            if (wcscmp(argv[i], L"--no-tray") == 0) {
+                g_trayIconEnabled = false;
+            } else if (wcscmp(argv[i], L"--debug") == 0) {
+                g_debugEnabled = true;
+            }
+        }
+        LocalFree(argv);
+    }
+
     WriteLog(L"Executable started.");
 
     // Check if the app is set to launch at startup

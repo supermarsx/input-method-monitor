@@ -22,6 +22,15 @@ TEMP_HOTKEY_TIMEOUT=10000 # Milliseconds for temporary hotkeys to remain enabled
 LOG_PATH=path\to\logfile # Optional custom log file location
 ```
 
+## Command Line Options
+The executable also accepts a few optional flags which override settings in the
+configuration file:
+
+```
+--no-tray    Run without the system tray icon
+--debug      Enable debug logging
+```
+
 ## Build
 Visual Studio with C++ tools is required. Open a **Developer Command Prompt** for Visual Studio 2022 (or adjust the path in the script) and run:
 
