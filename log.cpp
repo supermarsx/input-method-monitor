@@ -70,7 +70,11 @@ void Log::process() {
             std::wstring path = GetLogPath();
             std::wofstream logFile(path, std::ios::app);
             if (logFile.is_open()) {
-                logFile << msg << std::endl;
+                SYSTEMTIME st{};
+                GetLocalTime(&st);
+                wchar_t ts[32] = {0};
+                swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+                logFile << ts << L" " << msg << std::endl;
             } else {
                 OutputDebugString(L"Failed to open log file.");
             }
