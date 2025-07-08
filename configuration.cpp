@@ -1,7 +1,7 @@
 #include "configuration.h"
 #include <windows.h>
 #include <Shlwapi.h>
-#include <constants.h>
+#include "constants.h"
 #include <fstream>
 #include <algorithm>
 
