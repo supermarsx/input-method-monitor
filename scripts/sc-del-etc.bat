@@ -22,5 +22,4 @@ del *.obj 2>&1 || set ERRORLEVEL=1
 if errorlevel 1 (
     echo [91m[FAILED][0m Delete *.obj files.
 ) else (
-    echo [92m[OK][0m Delete *.obj files.
-)
+    echo [92m[OK][0m Delete *.obj files.)

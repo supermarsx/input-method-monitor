@@ -17,5 +17,4 @@ if errorlevel 1 (
 ) else (
     echo [92m[OK][0m Kill application, %APP_NAME%.
 )
-
 endlocal
