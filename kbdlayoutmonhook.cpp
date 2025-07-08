@@ -94,7 +94,7 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
     HKEY hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Preload", 0, KEY_SET_VALUE, &hKey);
     if (result == ERROR_SUCCESS) {
-        result = RegSetValueEx(hKey, L"1", 0, REG_SZ, (const BYTE*)klid.c_str(), (DWORD)(klid.size() * sizeof(wchar_t)));
+        result = RegSetValueEx(hKey, L"1", 0, REG_SZ, (const BYTE*)klid.c_str(), (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (Preload) to Locale ID: " << localeID << L", KLID: " << klid;
@@ -113,7 +113,7 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
 
     result = RegOpenKeyEx(HKEY_USERS, L".DEFAULT\\Keyboard Layout\\Preload", 0, KEY_SET_VALUE, &hKey);
     if (result == ERROR_SUCCESS) {
-        result = RegSetValueEx(hKey, L"1", 0, REG_SZ, (const BYTE*)klid.c_str(), (DWORD)(klid.size() * sizeof(wchar_t)));
+        result = RegSetValueEx(hKey, L"1", 0, REG_SZ, (const BYTE*)klid.c_str(), (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (DEFAULT Preload) to Locale ID: " << localeID << L", KLID: " << klid;
@@ -134,7 +134,7 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
     result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Control Panel\\International\\User Profile", 0, KEY_SET_VALUE, &hKey);
     if (result == ERROR_SUCCESS) {
         std::wstring value = localeID + L":" + klid;
-        result = RegSetValueEx(hKey, L"InputMethodOverride", 0, REG_SZ, (const BYTE*)value.c_str(), (DWORD)(value.size() * sizeof(wchar_t)));
+        result = RegSetValueEx(hKey, L"InputMethodOverride", 0, REG_SZ, (const BYTE*)value.c_str(), (DWORD)((value.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (InputMethodOverride) to " << value;
