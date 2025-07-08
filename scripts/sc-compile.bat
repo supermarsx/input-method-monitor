@@ -71,7 +71,7 @@ REM echo.
 REM echo [46mCompiling %OUTPUT_EXE%[0m
 REM echo.
 
-cl /nologo /EHsc /DUNICODE /D_UNICODE /W4 /MD %SOURCE_EXE% configuration.cpp %OUTPUT_RES_ICO% %OUTPUT_RES_VER% /link /out:%OUTPUT_DIR%\%OUTPUT_EXE% shlwapi.lib user32.lib gdi32.lib ole32.lib advapi32.lib shell32.lib 2>&1 >nul
+cl /nologo /EHsc /DUNICODE /D_UNICODE /W4 /MD %SOURCE_EXE% log.cpp configuration.cpp %OUTPUT_RES_ICO% %OUTPUT_RES_VER% /link /out:%OUTPUT_DIR%\%OUTPUT_EXE% shlwapi.lib user32.lib gdi32.lib ole32.lib advapi32.lib shell32.lib 2>&1 >nul
 if errorlevel 1 (
 	echo [91m[FAILED][0m Compile executable: %OUTPUT_EXE%
 ) else (
@@ -82,7 +82,7 @@ REM Compile kbdlayoutmonhook.dll
 REM echo.
 REM echo [46mCompiling %OUTPUT_DLL%.[0m
 REM echo.
-cl /nologo /EHsc /DUNICODE /D_UNICODE /W4 /MD /LD %SOURCE_LIB% /link /out:%OUTPUT_DIR%\%OUTPUT_DLL% shlwapi.lib user32.lib gdi32.lib ole32.lib advapi32.lib 2>&1 >nul
+cl /nologo /EHsc /DUNICODE /D_UNICODE /W4 /MD /LD %SOURCE_LIB% log.cpp configuration.cpp /link /out:%OUTPUT_DIR%\%OUTPUT_DLL% shlwapi.lib user32.lib gdi32.lib ole32.lib advapi32.lib 2>&1 >nul
 if errorlevel 1 (
     echo [91m[FAILED][0m Compile dll, %OUTPUT_DLL%.
 ) else (
