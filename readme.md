@@ -4,7 +4,7 @@
 Input Method Monitor is a small Windows utility that keeps your default input method in sync with the currently active keyboard layout. It installs a shell hook through a companion DLL and can display a tray icon for quick actions.
 
 ## Features
-- Monitors keyboard layout changes and updates registry settings for the default input method.
+- Monitors keyboard layout changes and updates registry settings for the default input method. Registry writes are handled on a background thread.
 - Optional system tray icon with options to:
   - Launch the application at system startup.
   - Toggle Windows "Language" and "Layout" hotkeys.
