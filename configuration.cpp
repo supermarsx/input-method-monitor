@@ -51,6 +51,16 @@ void Configuration::load() {
         std::transform(key.begin(), key.end(), key.begin(), [](wchar_t c) {
             return std::towlower(c);
         });
-        settings[key] = value;
+
+        if (key == L"temp_hotkey_timeout") {
+            try {
+                int timeout = std::stoi(value);
+                settings[key] = std::to_wstring(timeout);
+            } catch (...) {
+                settings[key] = L"10000";
+            }
+        } else {
+            settings[key] = value;
+        }
     }
 }
