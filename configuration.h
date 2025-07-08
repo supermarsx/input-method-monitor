@@ -10,3 +10,5 @@ public:
 
     void load();
 };
+
+extern Configuration g_config; // Shared configuration instance

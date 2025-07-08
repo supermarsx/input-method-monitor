@@ -3,12 +3,18 @@
 #include <fstream>
 #include <Shlwapi.h>
 #include <utility>
+#include "configuration.h"
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
 extern bool g_debugEnabled;
 
 namespace {
 std::wstring GetLogPath() {
+    auto it = g_config.settings.find(L"log_path");
+    if (it != g_config.settings.end() && !it->second.empty()) {
+        return it->second;
+    }
+
     wchar_t logPath[MAX_PATH] = {0};
     if (g_hInst) {
         GetModuleFileName(g_hInst, logPath, MAX_PATH);

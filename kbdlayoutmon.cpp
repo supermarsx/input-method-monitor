@@ -365,15 +365,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     g_hInst = hInstance;
 
-    // Load configuration using the shared Configuration class
-    Configuration config;
-    config.load();
-    g_debugEnabled = config.settings[L"debug"] == L"1";
-    if (config.settings.count(L"tray_icon")) {
-        g_trayIconEnabled = config.settings[L"tray_icon"] != L"0";
+    // Load configuration before any logging occurs
+    g_config.load();
+    g_debugEnabled = g_config.settings[L"debug"] == L"1";
+    if (g_config.settings.count(L"tray_icon")) {
+        g_trayIconEnabled = g_config.settings[L"tray_icon"] != L"0";
     }
-    if (config.settings.count(L"temp_hotkey_timeout")) {
-        g_tempHotKeyTimeout = std::wcstoul(config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
+    if (g_config.settings.count(L"temp_hotkey_timeout")) {
+        g_tempHotKeyTimeout = std::wcstoul(g_config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
     }
 
     WriteLog(L"Executable started.");

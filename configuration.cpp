@@ -7,6 +7,9 @@
 
 extern HINSTANCE g_hInst; // Provided by the executable
 
+// Global configuration instance shared across modules
+Configuration g_config;
+
 void Configuration::load() {
     wchar_t configPath[MAX_PATH];
     GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
