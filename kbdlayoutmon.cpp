@@ -87,6 +87,17 @@ std::wstring GetVersionString() {
     return ver;
 }
 
+// Return a short usage string describing supported options
+std::wstring GetUsageString() {
+    return
+        L"Usage: kbdlayoutmon [options]\n\n"
+        L"Options:\n"
+        L"  --no-tray    Run without the system tray icon\n"
+        L"  --debug      Enable debug logging\n"
+        L"  --version    Print the application version and exit\n"
+        L"  --help       Show this help message and exit";
+}
+
 
 
 // Helper function to check if app is set to launch at startup
@@ -455,6 +466,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     FreeConsole();
                 } else {
                     MessageBox(NULL, version.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
+                }
+                LocalFree(argv);
+                if (g_hInstanceMutex) {
+                    ReleaseMutex(g_hInstanceMutex);
+                    CloseHandle(g_hInstanceMutex);
+                }
+                return 0;
+            } else if (wcscmp(argv[i], L"--help") == 0) {
+                std::wstring usage = GetUsageString();
+                if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+                    FILE* fp = _wfopen(L"CONOUT$", L"w");
+                    if (fp) {
+                        fwprintf(fp, L"%s\n", usage.c_str());
+                        fclose(fp);
+                    }
+                    FreeConsole();
+                } else {
+                    MessageBox(NULL, usage.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
                 }
                 LocalFree(argv);
                 if (g_hInstanceMutex) {
