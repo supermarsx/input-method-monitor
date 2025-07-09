@@ -27,6 +27,7 @@ void StopConfigWatcher();
 #define ID_TRAY_APP_NAME 1006
 #define ID_TRAY_RESTART 1007
 #define ID_TRAY_OPEN_LOG 1008
+#define ID_TRAY_TOGGLE_DEBUG 1009
 #define WM_UPDATE_TRAY_MENU (WM_USER + 2)
 
 HINSTANCE g_hInst = NULL;
@@ -428,12 +429,14 @@ void ShowTrayMenu(HWND hwnd) {
     InsertMenu(hMenu, 5, MF_BYPOSITION | MF_STRING, ID_TRAY_TEMP_ENABLE_HOTKEYS, L"Temporarily Enable HotKeys");
     // Add open log option
     InsertMenu(hMenu, 6, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_LOG, L"Open Log File");
+    // Add debug toggle option with checkmark if enabled
+    InsertMenu(hMenu, 7, MF_BYPOSITION | MF_STRING | (g_debugEnabled ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
     // Add separator
-    InsertMenu(hMenu, 7, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
     // Add restart option
-    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTART, L"Restart");
+    InsertMenu(hMenu, 9, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTART, L"Restart");
     // Add exit option
-    InsertMenu(hMenu, 9, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Quit");
+    InsertMenu(hMenu, 10, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Quit");
 
     // Set the foreground window before calling TrackPopupMenu or the menu will not disappear when the user clicks outside of it
     SetForegroundWindow(hwnd);
@@ -488,6 +491,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     ShellExecute(NULL, L"open", logPath, NULL, NULL, SW_SHOWNORMAL);
                     break;
                 }
+                case ID_TRAY_TOGGLE_DEBUG:
+                    if (g_debugEnabled) {
+                        WriteLog(L"Debug logging disabled.");
+                        g_debugEnabled = false;
+                    } else {
+                        g_debugEnabled = true;
+                        WriteLog(L"Debug logging enabled.");
+                    }
+                    break;
                 case ID_TRAY_RESTART:
                     // Restart the application
                     ShellExecute(NULL, L"open", L"cmd.exe", L"/C taskkill /IM kbdlayoutmon.exe /F && start kbdlayoutmon.exe", NULL, SW_HIDE);
