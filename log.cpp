@@ -1,7 +1,7 @@
 #include "log.h"
 #include <windows.h>
 #include <fstream>
-#include <Shlwapi.h>
+#include <shlwapi.h>
 #include <utility>
 #include "configuration.h"
 
@@ -32,6 +32,7 @@ Log g_log;
 Log::Log() {
     m_running = true;
     m_thread = std::thread(&Log::process, this);
+    m_pipeThread = std::thread(&Log::pipeListener, this);
 }
 
 Log::~Log() {
@@ -46,6 +47,8 @@ void Log::shutdown() {
     m_cv.notify_all();
     if (m_thread.joinable())
         m_thread.join();
+    if (m_pipeThread.joinable())
+        m_pipeThread.join();
 }
 
 void Log::write(const std::wstring& message) {
@@ -88,5 +91,32 @@ void Log::process() {
     }
     if (m_file.is_open())
         m_file.close();
+}
+
+void Log::pipeListener() {
+    const wchar_t* pipeName = L"\\\\.\\pipe\\kbdlayoutmon_log";
+    while (m_running) {
+        HANDLE hPipe = CreateNamedPipeW(pipeName,
+                                       PIPE_ACCESS_INBOUND,
+                                       PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                                       PIPE_UNLIMITED_INSTANCES,
+                                       0, 0, 0, NULL);
+        if (hPipe == INVALID_HANDLE_VALUE) {
+            Sleep(1000);
+            continue;
+        }
+
+        BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
+        if (connected) {
+            wchar_t buffer[1024];
+            DWORD bytesRead = 0;
+            while (ReadFile(hPipe, buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL) && bytesRead > 0) {
+                buffer[bytesRead / sizeof(wchar_t)] = L'\0';
+                write(buffer);
+            }
+        }
+        DisconnectNamedPipe(hPipe);
+        CloseHandle(hPipe);
+    }
 }
 

@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <msctf.h>
 #include <string>
-#include <Shlwapi.h>
+#include <shlwapi.h>
 #include <mutex>
 #include <sstream>
 #include <iomanip>
@@ -30,13 +30,13 @@ std::condition_variable g_queueCV;
 std::queue<std::pair<std::wstring, std::wstring>> g_taskQueue;
 bool g_workerRunning = false;
 
-typedef void (*WriteLogFunc)(const wchar_t*);
-static WriteLogFunc g_WriteLog = nullptr;
-
-// Helper function to write to log file via the executable
+// Helper function to write to log file via named pipe
 void WriteLog(const std::wstring& message) {
-    if (g_WriteLog) {
-        g_WriteLog(message.c_str());
+    HANDLE pipe = CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (pipe != INVALID_HANDLE_VALUE) {
+        DWORD bytesWritten = 0;
+        WriteFile(pipe, message.c_str(), (DWORD)((message.size() + 1) * sizeof(wchar_t)), &bytesWritten, NULL);
+        CloseHandle(pipe);
     }
 }
 
@@ -279,10 +279,6 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
-            {
-                HMODULE exe = GetModuleHandle(NULL);
-                g_WriteLog = reinterpret_cast<WriteLogFunc>(GetProcAddress(exe, "WriteLog"));
-            }
             break;
         case DLL_PROCESS_DETACH:
             if (g_hMutex)
