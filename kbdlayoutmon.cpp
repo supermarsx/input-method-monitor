@@ -6,6 +6,7 @@
 #include <mutex>
 #include <sstream>
 #include <shellapi.h>
+#include <vector>
 #include "res-icon.h"  // Include the resource header
 #include "configuration.h"
 #include "log.h"
@@ -55,6 +56,35 @@ NOTIFYICONDATA nid;
 // Helper function to write to log file
 extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
     g_log.write(message);
+}
+
+// Retrieve version information from the executable's version resource
+std::wstring GetVersionString() {
+    wchar_t path[MAX_PATH] = {0};
+    if (!GetModuleFileNameW(NULL, path, MAX_PATH))
+        return L"";
+
+    DWORD handle = 0;
+    DWORD size = GetFileVersionInfoSizeW(path, &handle);
+    if (size == 0)
+        return L"";
+
+    std::vector<BYTE> data(size);
+    if (!GetFileVersionInfoW(path, handle, size, data.data()))
+        return L"";
+
+    VS_FIXEDFILEINFO* info = nullptr;
+    UINT len = 0;
+    if (!VerQueryValueW(data.data(), L"\\", reinterpret_cast<LPVOID*>(&info), &len) || len == 0)
+        return L"";
+
+    wchar_t ver[64] = {0};
+    swprintf(ver, 64, L"%u.%u.%u.%u",
+             HIWORD(info->dwFileVersionMS),
+             LOWORD(info->dwFileVersionMS),
+             HIWORD(info->dwFileVersionLS),
+             LOWORD(info->dwFileVersionLS));
+    return ver;
 }
 
 
@@ -414,6 +444,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 g_trayIconEnabled = false;
             } else if (wcscmp(argv[i], L"--debug") == 0) {
                 g_debugEnabled = true;
+            } else if (wcscmp(argv[i], L"--version") == 0) {
+                std::wstring version = GetVersionString();
+                if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+                    FILE* fp = _wfopen(L"CONOUT$", L"w");
+                    if (fp) {
+                        fwprintf(fp, L"%s\n", version.c_str());
+                        fclose(fp);
+                    }
+                    FreeConsole();
+                } else {
+                    MessageBox(NULL, version.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
+                }
+                LocalFree(argv);
+                if (g_hInstanceMutex) {
+                    ReleaseMutex(g_hInstanceMutex);
+                    CloseHandle(g_hInstanceMutex);
+                }
+                return 0;
             }
         }
         LocalFree(argv);
