@@ -11,6 +11,12 @@
 #include "configuration.h"
 #include "log.h"
 
+// Forward declarations
+void ApplyConfig(HWND hwnd);
+DWORD WINAPI ConfigWatchThread(LPVOID param);
+void StartConfigWatcher(HWND hwnd);
+void StopConfigWatcher();
+
 #define TRAY_ICON_ID 1001
 #define WM_TRAYICON (WM_USER + 1)
 #define ID_TRAY_EXIT 1001
@@ -50,6 +56,9 @@ bool g_layoutHotKeyEnabled = false; // Global variable to track Layout HotKey st
 bool g_tempHotKeysEnabled = false; // Global flag to track temporary hotkeys status
 DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseconds
 NOTIFYICONDATA nid;
+HWND g_hwnd = NULL;                // Handle to our message window
+HANDLE g_hConfigThread = NULL;     // Thread monitoring config file
+HANDLE g_hStopConfigEvent = NULL;  // Event to stop config watcher
 
 
 
@@ -316,6 +325,82 @@ void RemoveTrayIcon() {
     }
 }
 
+// Apply configuration values to runtime settings
+void ApplyConfig(HWND hwnd) {
+    bool debug = g_config.settings[L"debug"] == L"1";
+    g_debugEnabled = debug;
+
+    bool tray = true;
+    if (g_config.settings.count(L"tray_icon"))
+        tray = g_config.settings[L"tray_icon"] != L"0";
+    if (tray != g_trayIconEnabled) {
+        if (tray) {
+            g_trayIconEnabled = true;
+            if (hwnd)
+                AddTrayIcon(hwnd);
+        } else {
+            if (hwnd)
+                RemoveTrayIcon();
+            g_trayIconEnabled = false;
+        }
+    }
+
+    if (g_config.settings.count(L"temp_hotkey_timeout")) {
+        g_tempHotKeyTimeout =
+            std::wcstoul(g_config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
+    }
+}
+
+// Thread procedure to watch for configuration file changes
+DWORD WINAPI ConfigWatchThread(LPVOID param) {
+    HWND hwnd = (HWND)param;
+    wchar_t dirPath[MAX_PATH];
+    GetModuleFileNameW(g_hInst, dirPath, MAX_PATH);
+    PathRemoveFileSpecW(dirPath);
+
+    HANDLE hChange = FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
+    if (hChange == INVALID_HANDLE_VALUE)
+        return 0;
+
+    HANDLE handles[2] = { hChange, g_hStopConfigEvent };
+    for (;;) {
+        DWORD wait = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+        if (wait == WAIT_OBJECT_0) {
+            g_config.load();
+            ApplyConfig(hwnd);
+            WriteLog(L"Configuration reloaded.");
+            FindNextChangeNotification(hChange);
+        } else if (wait == WAIT_OBJECT_0 + 1) {
+            break;
+        } else {
+            break;
+        }
+    }
+
+    FindCloseChangeNotification(hChange);
+    return 0;
+}
+
+void StartConfigWatcher(HWND hwnd) {
+    g_hStopConfigEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+    g_hConfigThread = CreateThread(NULL, 0, ConfigWatchThread, hwnd, 0, NULL);
+}
+
+void StopConfigWatcher() {
+    if (g_hStopConfigEvent) {
+        SetEvent(g_hStopConfigEvent);
+    }
+    if (g_hConfigThread) {
+        WaitForSingleObject(g_hConfigThread, INFINITE);
+        CloseHandle(g_hConfigThread);
+        g_hConfigThread = NULL;
+    }
+    if (g_hStopConfigEvent) {
+        CloseHandle(g_hStopConfigEvent);
+        g_hStopConfigEvent = NULL;
+    }
+}
+
 // Function to handle tray icon menu
 void ShowTrayMenu(HWND hwnd) {
     if (!g_trayIconEnabled) return; // Do not show tray menu if tray icon is disabled
@@ -438,13 +523,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Load configuration before any logging occurs
     g_config.load();
-    g_debugEnabled = g_config.settings[L"debug"] == L"1";
-    if (g_config.settings.count(L"tray_icon")) {
-        g_trayIconEnabled = g_config.settings[L"tray_icon"] != L"0";
-    }
-    if (g_config.settings.count(L"temp_hotkey_timeout")) {
-        g_tempHotKeyTimeout = std::wcstoul(g_config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
-    }
+    ApplyConfig(NULL);
 
     // Parse command line options after the config file so they override
     int argc = 0;
@@ -523,6 +602,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
         }
+        StopConfigWatcher();
         return 1;
     }
 
@@ -551,8 +631,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
+    g_hwnd = hwnd;
+
     // Add the tray icon
     AddTrayIcon(hwnd);
+    StartConfigWatcher(hwnd);
 
     // Load the DLL
     g_hDll = LoadLibrary(L"kbdlayoutmonhook.dll");
@@ -585,6 +668,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
         }
+        StopConfigWatcher();
         return 1;
     }
 
@@ -595,6 +679,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
         }
+        StopConfigWatcher();
         return 1;
     }
 
@@ -613,6 +698,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DispatchMessage(&msg);
     }
 
+    StopConfigWatcher();
     UninstallGlobalHook();
     FreeLibrary(g_hDll);
     CloseHandle(g_hMutex); // Close the mutex handle

@@ -23,6 +23,8 @@ TEMP_HOTKEY_TIMEOUT=10000 # Milliseconds for temporary hotkeys to remain enabled
 LOG_PATH=path\to\logfile # Optional custom log file location
 ```
 
+Changes to `kbdlayoutmon.config` are picked up automatically while the program is running.
+
 ## Command Line Options
 The executable also accepts a few optional flags which override settings in the
 configuration file. Use `--help` to display a summary at runtime:
