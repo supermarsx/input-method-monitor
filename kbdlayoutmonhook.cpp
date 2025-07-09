@@ -2,7 +2,6 @@
 #include <windows.h>
 #include <msctf.h>
 #include <string>
-#include <fstream>
 #include <Shlwapi.h>
 #include <mutex>
 #include <sstream>
@@ -11,13 +10,9 @@
 #include <thread>
 #include <condition_variable>
 #include <queue>
-#include "log.h"
-#include "configuration.h"
-
 HINSTANCE g_hInst = NULL;
 HHOOK g_hHook = NULL;
 std::mutex g_mutex;
-bool g_debugEnabled = false; // Global variable to control debug logging
 
 #pragma data_seg(".shared")
 HKL g_lastHKL = NULL; // Declare g_lastHKL in the shared memory segment
@@ -35,9 +30,14 @@ std::condition_variable g_queueCV;
 std::queue<std::pair<std::wstring, std::wstring>> g_taskQueue;
 bool g_workerRunning = false;
 
-// Helper function to write to log file
+typedef void (*WriteLogFunc)(const wchar_t*);
+static WriteLogFunc g_WriteLog = nullptr;
+
+// Helper function to write to log file via the executable
 void WriteLog(const std::wstring& message) {
-    g_log.write(message);
+    if (g_WriteLog) {
+        g_WriteLog(message.c_str());
+    }
 }
 
 
@@ -279,8 +279,10 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
-            g_config.load();
-            g_debugEnabled = g_config.settings[L"debug"] == L"1";
+            {
+                HMODULE exe = GetModuleHandle(NULL);
+                g_WriteLog = reinterpret_cast<WriteLogFunc>(GetProcAddress(exe, "WriteLog"));
+            }
             break;
         case DLL_PROCESS_DETACH:
             if (g_hMutex)

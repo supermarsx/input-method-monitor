@@ -53,7 +53,7 @@ NOTIFYICONDATA nid;
 
 
 // Helper function to write to log file
-void WriteLog(const wchar_t* message) {
+extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
     g_log.write(message);
 }
 
