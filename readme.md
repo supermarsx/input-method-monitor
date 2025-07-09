@@ -30,6 +30,7 @@ configuration file:
 ```
 --no-tray    Run without the system tray icon
 --debug      Enable debug logging
+--version    Print the application version and exit
 ```
 
 ## Build
