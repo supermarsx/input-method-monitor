@@ -2,7 +2,7 @@
 #include <windows.h>
 #include <string>
 #include <fstream>
-#include <Shlwapi.h>
+#include <shlwapi.h>
 #include <mutex>
 #include <sstream>
 #include <shellapi.h>
