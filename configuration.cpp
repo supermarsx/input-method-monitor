@@ -10,16 +10,29 @@ extern HINSTANCE g_hInst; // Provided by the executable
 // Global configuration instance shared across modules
 Configuration g_config;
 
-void Configuration::load() {
-    wchar_t configPath[MAX_PATH];
-    GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
-    PathRemoveFileSpecW(configPath);
-    PathCombineW(configPath, configPath, configFile.c_str());
+void Configuration::load(const std::wstring& path) {
+    std::wstring fullPath;
 
-    std::wifstream file(configPath);
+    if (!path.empty()) {
+        m_lastPath = path;
+        fullPath = path;
+    } else if (!m_lastPath.empty()) {
+        fullPath = m_lastPath;
+    } else {
+        wchar_t configPath[MAX_PATH];
+        GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
+        PathRemoveFileSpecW(configPath);
+        PathCombineW(configPath, configPath, configFile.c_str());
+        fullPath = configPath;
+        m_lastPath = fullPath;
+    }
+
+    std::wifstream file(fullPath);
     if (!file.is_open()) {
         return;
     }
+
+    settings.clear();
 
     std::wstring line;
     while (std::getline(file, line)) {
