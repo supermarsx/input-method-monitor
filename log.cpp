@@ -29,6 +29,10 @@ std::wstring GetLogPath() {
 
 Log g_log;
 
+extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
+    g_log.write(message);
+}
+
 Log::Log() {
     m_running = true;
     m_thread = std::thread(&Log::process, this);

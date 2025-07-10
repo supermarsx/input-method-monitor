@@ -60,14 +60,6 @@ NOTIFYICONDATA nid;
 HWND g_hwnd = NULL;                // Handle to our message window
 HANDLE g_hConfigThread = NULL;     // Thread monitoring config file
 HANDLE g_hStopConfigEvent = NULL;  // Event to stop config watcher
-
-
-
-// Helper function to write to log file
-extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
-    g_log.write(message);
-}
-
 // Retrieve version information from the executable's version resource
 std::wstring GetVersionString() {
     wchar_t path[MAX_PATH] = {0};

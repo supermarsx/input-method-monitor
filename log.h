@@ -29,3 +29,6 @@ private:
 };
 
 extern Log g_log;
+
+// Exported helper for modules that share the logging system
+extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message);
