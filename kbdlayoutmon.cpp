@@ -9,6 +9,7 @@
 #include <vector>
 #include "res-icon.h"  // Include the resource header
 #include "configuration.h"
+#include "constants.h"
 #include "log.h"
 
 // Forward declarations
@@ -28,6 +29,7 @@ void StopConfigWatcher();
 #define ID_TRAY_RESTART 1007
 #define ID_TRAY_OPEN_LOG 1008
 #define ID_TRAY_TOGGLE_DEBUG 1009
+#define ID_TRAY_OPEN_CONFIG 1010
 #define WM_UPDATE_TRAY_MENU (WM_USER + 2)
 
 HINSTANCE g_hInst = NULL;
@@ -432,14 +434,16 @@ void ShowTrayMenu(HWND hwnd) {
     InsertMenu(hMenu, 5, MF_BYPOSITION | MF_STRING, ID_TRAY_TEMP_ENABLE_HOTKEYS, L"Temporarily Enable HotKeys");
     // Add open log option
     InsertMenu(hMenu, 6, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_LOG, L"Open Log File");
+    // Add open config option
+    InsertMenu(hMenu, 7, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_CONFIG, L"Open Config File");
     // Add debug toggle option with checkmark if enabled
-    InsertMenu(hMenu, 7, MF_BYPOSITION | MF_STRING | (g_debugEnabled ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
+    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING | (g_debugEnabled ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
     // Add separator
-    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
+    InsertMenu(hMenu, 9, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
     // Add restart option
-    InsertMenu(hMenu, 9, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTART, L"Restart");
+    InsertMenu(hMenu, 10, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTART, L"Restart");
     // Add exit option
-    InsertMenu(hMenu, 10, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Quit");
+    InsertMenu(hMenu, 11, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Quit");
 
     // Set the foreground window before calling TrackPopupMenu or the menu will not disappear when the user clicks outside of it
     SetForegroundWindow(hwnd);
@@ -492,6 +496,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                         lstrcpyW(logPath, L"kbdlayoutmon.log");
                     }
                     ShellExecute(NULL, L"open", logPath, NULL, NULL, SW_SHOWNORMAL);
+                    break;
+                }
+                case ID_TRAY_OPEN_CONFIG:
+                {
+                    wchar_t cfgPath[MAX_PATH] = {0};
+                    if (g_hInst) {
+                        GetModuleFileName(g_hInst, cfgPath, MAX_PATH);
+                        PathRemoveFileSpec(cfgPath);
+                        PathCombine(cfgPath, cfgPath, configFile.c_str());
+                    } else {
+                        lstrcpynW(cfgPath, configFile.c_str(), MAX_PATH);
+                    }
+                    ShellExecute(NULL, L"open", cfgPath, NULL, NULL, SW_SHOWNORMAL);
                     break;
                 }
                 case ID_TRAY_TOGGLE_DEBUG:
