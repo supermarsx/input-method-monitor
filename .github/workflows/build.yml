@@ -1,0 +1,20 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Compile
+      run: scripts\sc-compile.bat
+      shell: cmd
+    - name: Smoke test
+      run: |
+        if (!(Test-Path 'dist\kbdlayoutmon.exe')) { throw 'Missing executable' }
+        if (!(Test-Path 'dist\kbdlayoutmonhook.dll')) { throw 'Missing DLL' }
+      shell: pwsh
