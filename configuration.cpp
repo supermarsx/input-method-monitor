@@ -10,12 +10,12 @@ extern HINSTANCE g_hInst; // Provided by the executable
 // Global configuration instance shared across modules
 Configuration g_config;
 
-void Configuration::load(const std::wstring& path) {
+void Configuration::load(std::optional<std::wstring> path) {
     std::wstring fullPath;
 
-    if (!path.empty()) {
-        m_lastPath = path;
-        fullPath = path;
+    if (path && !path->empty()) {
+        m_lastPath = *path;
+        fullPath = *path;
     } else if (!m_lastPath.empty()) {
         fullPath = m_lastPath;
     } else {

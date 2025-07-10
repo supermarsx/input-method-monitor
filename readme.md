@@ -27,6 +27,7 @@ MAX_LOG_SIZE_MB=10 # Rotate log when it exceeds this size in megabytes
 
 Changes to `kbdlayoutmon.config` are picked up automatically while the program is running.
 Debug logging can also be toggled on or off at runtime from the tray icon menu.
+You can specify an alternate configuration file on startup using `--config <path>`.
 
 ## Command Line Options
 The executable also accepts a few optional flags which override settings in the
