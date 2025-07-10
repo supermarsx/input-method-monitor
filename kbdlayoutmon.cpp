@@ -328,12 +328,13 @@ void RemoveTrayIcon() {
 
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
-    bool debug = g_config.settings[L"debug"] == L"1";
-    g_debugEnabled = debug;
+    auto it = g_config.settings.find(L"debug");
+    g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
 
     bool tray = true;
-    if (g_config.settings.count(L"tray_icon"))
-        tray = g_config.settings[L"tray_icon"] != L"0";
+    it = g_config.settings.find(L"tray_icon");
+    if (it != g_config.settings.end())
+        tray = it->second != L"0";
     if (tray != g_trayIconEnabled) {
         if (tray) {
             g_trayIconEnabled = true;
@@ -346,9 +347,10 @@ void ApplyConfig(HWND hwnd) {
         }
     }
 
-    if (g_config.settings.count(L"temp_hotkey_timeout")) {
+    it = g_config.settings.find(L"temp_hotkey_timeout");
+    if (it != g_config.settings.end()) {
         g_tempHotKeyTimeout =
-            std::wcstoul(g_config.settings[L"temp_hotkey_timeout"].c_str(), nullptr, 10);
+            std::wcstoul(it->second.c_str(), nullptr, 10);
     }
 }
 
