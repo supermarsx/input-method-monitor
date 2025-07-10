@@ -2,6 +2,7 @@
 
 #include <map>
 #include <string>
+#include <optional>
 
 class Configuration {
 public:
@@ -11,7 +12,9 @@ public:
     // Load configuration from the given path. If no path is provided,
     // the previously loaded path is used. When no path has been loaded
     // yet, the default configuration file next to the executable is used.
-    void load(const std::wstring& path = L"");
+    //
+    // Passing std::nullopt behaves the same as calling without an argument.
+    void load(std::optional<std::wstring> path = std::nullopt);
 
 private:
     std::wstring m_lastPath; // remembers the path of the last loaded config
