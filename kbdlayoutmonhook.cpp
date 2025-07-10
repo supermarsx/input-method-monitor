@@ -10,6 +10,9 @@
 #include <thread>
 #include <condition_variable>
 #include <queue>
+#include "configuration.h"
+
+bool g_debugEnabled = false;
 HINSTANCE g_hInst = NULL;
 HHOOK g_hHook = NULL;
 std::mutex g_mutex;
@@ -279,6 +282,10 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
+            {
+                auto it = g_config.settings.find(L"debug");
+                g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+            }
             break;
         case DLL_PROCESS_DETACH:
             if (g_hMutex)
