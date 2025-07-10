@@ -102,6 +102,7 @@ std::wstring GetUsageString() {
     return
         L"Usage: kbdlayoutmon [options]\n\n"
         L"Options:\n"
+        L"  --config <path>  Load configuration from the specified file\n"
         L"  --no-tray    Run without the system tray icon\n"
         L"  --debug      Enable debug logging\n"
         L"  --version    Print the application version and exit\n"
@@ -535,16 +536,29 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0;
     }
 
+    // Parse command line arguments early to check for a custom config file
+    int argc = 0;
+    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    std::wstring customConfigPath;
+    if (argv) {
+        for (int i = 1; i < argc; ++i) {
+            if (wcscmp(argv[i], L"--config") == 0 && i + 1 < argc) {
+                customConfigPath = argv[i + 1];
+                break;
+            }
+        }
+    }
+
     // Load configuration before any logging occurs
-    g_config.load();
+    g_config.load(customConfigPath);
     ApplyConfig(NULL);
 
     // Parse command line options after the config file so they override
-    int argc = 0;
-    LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (argv) {
         for (int i = 1; i < argc; ++i) {
-            if (wcscmp(argv[i], L"--no-tray") == 0) {
+            if (wcscmp(argv[i], L"--config") == 0 && i + 1 < argc) {
+                ++i; // skip the path argument
+            } else if (wcscmp(argv[i], L"--no-tray") == 0) {
                 g_trayIconEnabled = false;
             } else if (wcscmp(argv[i], L"--debug") == 0) {
                 g_debugEnabled = true;

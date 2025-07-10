@@ -32,6 +32,7 @@ The executable also accepts a few optional flags which override settings in the
 configuration file. Use `--help` to display a summary at runtime:
 
 ```
+--config <path>  Load configuration from the specified file
 --no-tray    Run without the system tray icon
 --debug      Enable debug logging
 --version    Print the application version and exit
