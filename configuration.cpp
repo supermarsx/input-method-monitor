@@ -75,6 +75,13 @@ void Configuration::load(const std::wstring& path) {
             } catch (...) {
                 settings[key] = L"10000";
             }
+        } else if (key == L"max_log_size_mb") {
+            try {
+                int size = std::stoi(value);
+                settings[key] = std::to_wstring(size);
+            } catch (...) {
+                settings[key] = L"10";
+            }
         } else {
             settings[key] = value;
         }

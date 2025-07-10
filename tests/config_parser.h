@@ -47,6 +47,13 @@ inline std::map<std::wstring, std::wstring> parse_config_lines(const std::vector
             } catch (...) {
                 settings[key] = L"10000";
             }
+        } else if (key == L"max_log_size_mb") {
+            try {
+                int size = std::stoi(value);
+                settings[key] = std::to_wstring(size);
+            } catch (...) {
+                settings[key] = L"10";
+            }
         } else {
             settings[key] = value;
         }

@@ -76,6 +76,29 @@ void Log::process() {
             lock.unlock();
 
             if (m_file.is_open()) {
+                // Check log file size
+                size_t maxMb = 10;
+                auto it = g_config.settings.find(L"max_log_size_mb");
+                if (it != g_config.settings.end()) {
+                    try {
+                        maxMb = std::stoul(it->second);
+                    } catch (...) {
+                        maxMb = 10;
+                    }
+                }
+                ULONGLONG maxBytes = static_cast<ULONGLONG>(maxMb) * 1024 * 1024ULL;
+
+                WIN32_FILE_ATTRIBUTE_DATA fad;
+                if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad)) {
+                    ULONGLONG size = (static_cast<ULONGLONG>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+                    if (size > maxBytes) {
+                        m_file.close();
+                        std::wstring rotated = path + L".1";
+                        MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING);
+                        m_file.open(path, std::ios::out | std::ios::trunc);
+                    }
+                }
+
                 SYSTEMTIME st{};
                 GetLocalTime(&st);
                 wchar_t ts[32] = {0};
