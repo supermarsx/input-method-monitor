@@ -41,13 +41,27 @@ configuration file. Use `--help` to display a summary at runtime:
 ```
 
 ## Build
-Visual Studio with C++ tools is required. Open a **Developer Command Prompt** for Visual Studio 2022 (or adjust the path in the script) and run:
 
+### Using CMake
+The project can be built with CMake 3.15 or newer. From a *Developer Command Prompt* run:
+
+```batch
+mkdir build
+cd build
+cmake .. -G "Visual Studio 17 2022"
+cmake --build . --config Release
 ```
+
+`kbdlayoutmon.exe` and `kbdlayoutmonhook.dll` will be produced in `build/Release` with resources and the application manifest embedded.
+
+### Batch Script
+Visual Studio with C++ tools is also sufficient. You can run:
+
+```batch
 scripts\sc-compile.bat
 ```
 
-The script compiles `kbdlayoutmon.exe` and `kbdlayoutmonhook.dll` and places the results in the `dist` folder.
+This script drops the resulting binaries into the `dist` folder.
 
 ## Batch Scripts
 Several helper scripts are provided in the `scripts` directory:
