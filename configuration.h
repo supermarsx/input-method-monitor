@@ -16,6 +16,9 @@ public:
     // Passing std::nullopt behaves the same as calling without an argument.
     void load(std::optional<std::wstring> path = std::nullopt);
 
+    // Retrieve the path of the last loaded configuration file
+    std::wstring getLastPath() const;
+
 private:
     std::wstring m_lastPath; // remembers the path of the last loaded config
 };

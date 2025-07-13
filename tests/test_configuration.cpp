@@ -2,6 +2,8 @@
 #include "config_parser.h"
 #include <string>
 #include <vector>
+#include <fstream>
+#include <filesystem>
 
 TEST_CASE("Valid entries are parsed", "[config]") {
     std::vector<std::wstring> lines = {
@@ -44,4 +46,30 @@ TEST_CASE("Whitespace handling", "[config]") {
     REQUIRE(settings[L"temp_hotkey_timeout"] == L"10000");
     REQUIRE(settings[L"log_path"] == L"path/space");
     REQUIRE(settings[L"max_log_size_mb"] == L"10");
+}
+
+TEST_CASE("Reload custom config file", "[config]") {
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "immon_test";
+    fs::create_directories(dir);
+    fs::path cfg = dir / "kbdlayoutmon.config";
+
+    {
+        std::wofstream out(cfg);
+        out << L"DEBUG=0\n";
+    }
+
+    auto settings = parse_config_file(cfg.wstring());
+    REQUIRE(settings[L"debug"] == L"0");
+
+    {
+        std::wofstream out(cfg);
+        out << L"DEBUG=1\n";
+    }
+
+    auto updated = parse_config_file(cfg.wstring());
+    REQUIRE(updated[L"debug"] == L"1");
+
+    fs::remove(cfg);
+    fs::remove(dir);
 }
