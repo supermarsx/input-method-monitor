@@ -33,6 +33,9 @@ std::condition_variable g_queueCV;
 std::queue<std::pair<std::wstring, std::wstring>> g_taskQueue;
 bool g_workerRunning = false;
 
+void IncrementRefCount();
+void DecrementRefCount();
+
 // Helper function to write to log file via named pipe
 void WriteLog(const std::wstring& message) {
     HANDLE pipe = CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);

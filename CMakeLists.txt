@@ -6,13 +6,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(COMMON_SOURCES
     configuration.cpp
-    log.cpp
 )
 
 # kbdlayoutmon executable
 add_executable(kbdlayoutmon
     kbdlayoutmon.cpp
     ${COMMON_SOURCES}
+    log.cpp
     resources/res-icon.rc
     resources/res-versioninfo.rc
 )

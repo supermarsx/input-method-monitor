@@ -67,7 +67,7 @@ void Log::write(const std::wstring& message) {
 
 void Log::process() {
     std::wstring path = GetLogPath();
-    m_file.open(path, std::ios::app);
+    m_file.open(path.c_str(), std::ios::app);
     if (!m_file.is_open()) {
         OutputDebugString(L"Failed to open log file.");
     }
@@ -99,7 +99,7 @@ void Log::process() {
                         m_file.close();
                         std::wstring rotated = path + L".1";
                         MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING);
-                        m_file.open(path, std::ios::out | std::ios::trunc);
+                        m_file.open(path.c_str(), std::ios::out | std::ios::trunc);
                     }
                 }
 

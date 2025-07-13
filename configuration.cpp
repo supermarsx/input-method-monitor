@@ -27,7 +27,7 @@ void Configuration::load(std::optional<std::wstring> path) {
         m_lastPath = fullPath;
     }
 
-    std::wifstream file(fullPath);
+    std::wifstream file(fullPath.c_str());
     if (!file.is_open()) {
         return;
     }
