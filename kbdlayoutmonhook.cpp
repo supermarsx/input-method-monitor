@@ -282,6 +282,7 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
+            g_config.load();
             {
                 auto it = g_config.settings.find(L"debug");
                 g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
