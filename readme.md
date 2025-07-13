@@ -16,7 +16,7 @@ Input Method Monitor is a small Windows utility that keeps your default input me
 - Optional debug logging to `kbdlayoutmon.log`.
 
 ## Configuration
-Configuration is read from `kbdlayoutmon.config` located next to the executable. Supported options are:
+Configuration is read from `kbdlayoutmon.config` located next to the executable. The DLL calls the same loader so both modules read this file. Supported options are:
 
 ```
 DEBUG=1       # Enable debug logging (0 to disable)
