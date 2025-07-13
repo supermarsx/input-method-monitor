@@ -87,3 +87,7 @@ void Configuration::load(std::optional<std::wstring> path) {
         }
     }
 }
+
+std::wstring Configuration::getLastPath() const {
+    return m_lastPath;
+}

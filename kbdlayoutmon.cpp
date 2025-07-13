@@ -353,7 +353,13 @@ void ApplyConfig(HWND hwnd) {
 DWORD WINAPI ConfigWatchThread(LPVOID param) {
     HWND hwnd = (HWND)param;
     wchar_t dirPath[MAX_PATH];
-    GetModuleFileNameW(g_hInst, dirPath, MAX_PATH);
+    std::wstring cfgPath = g_config.getLastPath();
+    if (cfgPath.empty()) {
+        GetModuleFileNameW(g_hInst, dirPath, MAX_PATH);
+    } else {
+        wcsncpy(dirPath, cfgPath.c_str(), MAX_PATH);
+        dirPath[MAX_PATH - 1] = L'\0';
+    }
     PathRemoveFileSpecW(dirPath);
 
     HANDLE hChange = FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);

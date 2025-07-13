@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cwctype>
 #include <vector>
+#include <fstream>
+#include <filesystem>
 
 inline std::map<std::wstring, std::wstring> parse_config_lines(const std::vector<std::wstring>& lines) {
     std::map<std::wstring, std::wstring> settings;
@@ -59,4 +61,14 @@ inline std::map<std::wstring, std::wstring> parse_config_lines(const std::vector
         }
     }
     return settings;
+}
+
+inline std::map<std::wstring, std::wstring> parse_config_file(const std::wstring& path) {
+    std::ifstream file{std::filesystem::path(path)};
+    std::vector<std::wstring> lines;
+    std::string line;
+    while (std::getline(file, line)) {
+        lines.push_back(std::wstring(line.begin(), line.end()));
+    }
+    return parse_config_lines(lines);
 }
