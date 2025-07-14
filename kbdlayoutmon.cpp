@@ -706,6 +706,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
         }
+        StopConfigWatcher();
         return 1;
     }
 
