@@ -21,6 +21,7 @@ private:
 
     std::thread m_thread;
     std::thread m_pipeThread;
+    HANDLE m_stopEvent = NULL;
     std::mutex m_mutex;
     std::condition_variable m_cv;
     std::queue<std::wstring> m_queue;
