@@ -279,6 +279,11 @@ extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
     ReleaseMutex(g_hMutex);
 }
 
+// Function to update debug logging state
+extern "C" __declspec(dllexport) void SetDebugLoggingEnabled(bool enabled) {
+    g_debugEnabled = enabled;
+}
+
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     UNREFERENCED_PARAMETER(lpReserved);
     switch (fdwReason) {

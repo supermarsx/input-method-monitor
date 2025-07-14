@@ -42,6 +42,7 @@ typedef void(*SetLanguageHotKeyEnabledFunc)(bool);
 typedef void(*SetLayoutHotKeyEnabledFunc)(bool);
 typedef bool(*GetLanguageHotKeyEnabledFunc)();
 typedef bool(*GetLayoutHotKeyEnabledFunc)();
+typedef void(*SetDebugLoggingEnabledFunc)(bool);
 
 InstallGlobalHookFunc InstallGlobalHook = NULL;
 UninstallGlobalHookFunc UninstallGlobalHook = NULL;
@@ -49,6 +50,7 @@ SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = NULL;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = NULL;
 GetLanguageHotKeyEnabledFunc GetLanguageHotKeyEnabled = NULL;
 GetLayoutHotKeyEnabledFunc GetLayoutHotKeyEnabled = NULL;
+SetDebugLoggingEnabledFunc SetDebugLoggingEnabled = NULL;
 
 std::mutex g_mutex;
 bool g_debugEnabled = false; // Global variable to control debug logging
@@ -324,7 +326,12 @@ void RemoveTrayIcon() {
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
     auto it = g_config.settings.find(L"debug");
-    g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+    bool newDebug = (it != g_config.settings.end() && it->second == L"1");
+    if (newDebug != g_debugEnabled) {
+        g_debugEnabled = newDebug;
+        if (SetDebugLoggingEnabled)
+            SetDebugLoggingEnabled(g_debugEnabled);
+    }
 
     bool tray = true;
     it = g_config.settings.find(L"tray_icon");
@@ -513,8 +520,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     if (g_debugEnabled) {
                         WriteLog(L"Debug logging disabled.");
                         g_debugEnabled = false;
+                        if (SetDebugLoggingEnabled)
+                            SetDebugLoggingEnabled(false);
                     } else {
                         g_debugEnabled = true;
+                        if (SetDebugLoggingEnabled)
+                            SetDebugLoggingEnabled(true);
                         WriteLog(L"Debug logging enabled.");
                     }
                     break;
@@ -576,7 +587,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             } else if (wcscmp(argv[i], L"--no-tray") == 0) {
                 g_trayIconEnabled = false;
             } else if (wcscmp(argv[i], L"--debug") == 0) {
-                g_debugEnabled = true;
+                if (!g_debugEnabled) {
+                    g_debugEnabled = true;
+                    if (SetDebugLoggingEnabled)
+                        SetDebugLoggingEnabled(true);
+                }
             } else if (wcscmp(argv[i], L"--version") == 0) {
                 std::wstring version = GetVersionString();
                 if (AttachConsole(ATTACH_PARENT_PROCESS)) {
@@ -700,8 +715,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     SetLayoutHotKeyEnabled = (SetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "SetLayoutHotKeyEnabled");
     GetLanguageHotKeyEnabled = (GetLanguageHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLanguageHotKeyEnabled");
     GetLayoutHotKeyEnabled = (GetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLayoutHotKeyEnabled");
+    SetDebugLoggingEnabled = (SetDebugLoggingEnabledFunc)GetProcAddress(g_hDll, "SetDebugLoggingEnabled");
 
-    if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled || !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled) {
+    if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled ||
+        !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabled) {
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
@@ -714,6 +731,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         StopConfigWatcher();
         return 1;
     }
+
+    // Propagate current debug logging state to the DLL
+    SetDebugLoggingEnabled(g_debugEnabled);
 
     if (!InstallGlobalHook()) {
         WriteLog(L"Failed to install global hook.");
