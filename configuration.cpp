@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <shlwapi.h>
 #include "constants.h"
+#include "log.h"
 #include <fstream>
 #include <algorithm>
 
@@ -29,6 +30,8 @@ void Configuration::load(std::optional<std::wstring> path) {
 
     std::wifstream file(fullPath.c_str());
     if (!file.is_open()) {
+        std::wstring msg = L"Unable to open config file: " + fullPath;
+        WriteLog(msg.c_str());
         return;
     }
 
