@@ -52,6 +52,9 @@ mkdir build
 cd build
 cmake .. -G "Visual Studio 17 2022"
 cmake --build . --config Release
+cmake --build . --target run_tests
+# or simply
+# ctest
 ```
 
 `kbdlayoutmon.exe` and `kbdlayoutmonhook.dll` will be produced in `build/Release` with resources and the application manifest embedded.
