@@ -35,6 +35,7 @@ extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
 
 Log::Log() {
     m_running = true;
+    m_stopEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
     m_thread = std::thread(&Log::process, this);
     m_pipeThread = std::thread(&Log::pipeListener, this);
 }
@@ -48,11 +49,17 @@ void Log::shutdown() {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_running = false;
     }
+    if (m_stopEvent)
+        SetEvent(m_stopEvent);
     m_cv.notify_all();
     if (m_thread.joinable())
         m_thread.join();
     if (m_pipeThread.joinable())
         m_pipeThread.join();
+    if (m_stopEvent) {
+        CloseHandle(m_stopEvent);
+        m_stopEvent = NULL;
+    }
 }
 
 void Log::write(const std::wstring& message) {
@@ -122,9 +129,14 @@ void Log::process() {
 
 void Log::pipeListener() {
     const wchar_t* pipeName = L"\\\\.\\pipe\\kbdlayoutmon_log";
+    OVERLAPPED ov{};
+    ov.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+    if (!ov.hEvent)
+        return;
+
     while (m_running) {
         HANDLE hPipe = CreateNamedPipeW(pipeName,
-                                       PIPE_ACCESS_INBOUND,
+                                       PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
                                        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
                                        PIPE_UNLIMITED_INSTANCES,
                                        0, 0, 0, NULL);
@@ -133,8 +145,24 @@ void Log::pipeListener() {
             continue;
         }
 
-        BOOL connected = ConnectNamedPipe(hPipe, NULL) ? TRUE : (GetLastError() == ERROR_PIPE_CONNECTED);
-        if (connected) {
+        ResetEvent(ov.hEvent);
+        BOOL connected = ConnectNamedPipe(hPipe, &ov);
+        DWORD err = GetLastError();
+        if (!connected) {
+            if (err == ERROR_PIPE_CONNECTED) {
+                SetEvent(ov.hEvent);
+            } else if (err != ERROR_IO_PENDING) {
+                CloseHandle(hPipe);
+                continue;
+            }
+        }
+
+        HANDLE events[2] = { ov.hEvent, m_stopEvent };
+        DWORD wait = WaitForMultipleObjects(2, events, FALSE, INFINITE);
+        if (wait == WAIT_OBJECT_0 + 1) {
+            CloseHandle(hPipe);
+            break;
+        } else if (wait == WAIT_OBJECT_0) {
             wchar_t buffer[1024];
             DWORD bytesRead = 0;
             while (ReadFile(hPipe, buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL) && bytesRead > 0) {
@@ -142,8 +170,11 @@ void Log::pipeListener() {
                 write(buffer);
             }
         }
+
         DisconnectNamedPipe(hPipe);
         CloseHandle(hPipe);
     }
+
+    CloseHandle(ov.hEvent);
 }
 
