@@ -30,7 +30,7 @@ void Configuration::load(std::optional<std::wstring> path) {
 
     std::wifstream file(fullPath.c_str());
     if (!file.is_open()) {
-        std::wstring msg = L"Unable to open config file: " + fullPath;
+        std::wstring msg = L"Failed to open configuration file: " + fullPath;
         WriteLog(msg.c_str());
         return;
     }
