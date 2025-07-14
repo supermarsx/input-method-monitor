@@ -312,7 +312,7 @@ void AddTrayIcon(HWND hwnd) {
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP)); // Use custom icon
-    wcscpy_s(nid.szTip, L"kbdlayoutmon");
+    wcscpy_s(nid.szTip, ARRAYSIZE(nid.szTip), L"kbdlayoutmon");
     Shell_NotifyIcon(NIM_ADD, &nid);
 }
 
