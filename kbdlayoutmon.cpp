@@ -42,6 +42,7 @@ typedef void(*SetLanguageHotKeyEnabledFunc)(bool);
 typedef void(*SetLayoutHotKeyEnabledFunc)(bool);
 typedef bool(*GetLanguageHotKeyEnabledFunc)();
 typedef bool(*GetLayoutHotKeyEnabledFunc)();
+typedef void(*SetDebugEnabledFunc)(bool);
 
 InstallGlobalHookFunc InstallGlobalHook = NULL;
 UninstallGlobalHookFunc UninstallGlobalHook = NULL;
@@ -49,6 +50,7 @@ SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = NULL;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = NULL;
 GetLanguageHotKeyEnabledFunc GetLanguageHotKeyEnabled = NULL;
 GetLayoutHotKeyEnabledFunc GetLayoutHotKeyEnabled = NULL;
+SetDebugEnabledFunc SetDebugEnabled = NULL;
 
 std::mutex g_mutex;
 bool g_debugEnabled = false; // Global variable to control debug logging
@@ -325,6 +327,8 @@ void RemoveTrayIcon() {
 void ApplyConfig(HWND hwnd) {
     auto it = g_config.settings.find(L"debug");
     g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+    if (SetDebugEnabled)
+        SetDebugEnabled(g_debugEnabled);
 
     bool tray = true;
     it = g_config.settings.find(L"tray_icon");
@@ -517,6 +521,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                         g_debugEnabled = true;
                         WriteLog(L"Debug logging enabled.");
                     }
+                    if (SetDebugEnabled)
+                        SetDebugEnabled(g_debugEnabled);
                     break;
                 case ID_TRAY_RESTART:
                     // Restart the application
@@ -700,8 +706,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     SetLayoutHotKeyEnabled = (SetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "SetLayoutHotKeyEnabled");
     GetLanguageHotKeyEnabled = (GetLanguageHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLanguageHotKeyEnabled");
     GetLayoutHotKeyEnabled = (GetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLayoutHotKeyEnabled");
+    SetDebugEnabled = (SetDebugEnabledFunc)GetProcAddress(g_hDll, "SetDebugEnabled");
 
-    if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled || !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled) {
+    if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled || !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugEnabled) {
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
@@ -714,6 +721,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         StopConfigWatcher();
         return 1;
     }
+
+    SetDebugEnabled(g_debugEnabled);
 
     if (!InstallGlobalHook()) {
         WriteLog(L"Failed to install global hook.");

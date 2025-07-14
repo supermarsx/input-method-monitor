@@ -38,6 +38,9 @@ void DecrementRefCount();
 
 // Helper function to write to log file via named pipe
 void WriteLog(const std::wstring& message) {
+    if (!g_debugEnabled)
+        return;
+
     HANDLE pipe = CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (pipe != INVALID_HANDLE_VALUE) {
         DWORD bytesWritten = 0;
@@ -277,6 +280,11 @@ extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
     WaitForSingleObject(g_hMutex, INFINITE);
     g_layoutHotKeyEnabled = enabled;
     ReleaseMutex(g_hMutex);
+}
+
+// Function to update debug logging state from the executable
+extern "C" __declspec(dllexport) void SetDebugEnabled(bool enabled) {
+    g_debugEnabled = enabled;
 }
 
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
