@@ -27,10 +27,10 @@ set OUTPUT_DLL=kbdlayoutmonhook.dll
 set SOURCE_EXE=kbdlayoutmon.cpp
 set OUTPUT_EXE=kbdlayoutmon.exe
 set MANIFEST_FILE=manifest.xml
-set SOURCE_RES_ICO=res-icon.rc
-set OUTPUT_RES_ICO=res-icon.res
-set SOURCE_RES_VER=res-versioninfo.rc
-set OUTPUT_RES_VER=res-versioninfo.res
+set SOURCE_RES_ICO=resources\res-icon.rc
+set OUTPUT_RES_ICO=resources\res-icon.res
+set SOURCE_RES_VER=resources\res-versioninfo.rc
+set OUTPUT_RES_VER=resources\res-versioninfo.res
 set CONFIG_FILE=kbdlayoutmon.config
 set SC_DEBUGTAIL_FILE=sc-taildebug-cur.bat
 set OUTPUT_DIR=dist
@@ -50,7 +50,7 @@ REM echo [46mCompiling resource file[0m
 REM echo.
 
 REM Icon resource
-rc /nologo /v %SOURCE_RES_ICO% 2>&1 >nul
+rc /nologo /v %SOURCE_RES_ICO% /fo %OUTPUT_RES_ICO% 2>&1 >nul
 if errorlevel 1 (
 	echo.
     echo [91m[FAILED][0m Compile resource, %SOURCE_RES_ICO%.
@@ -59,7 +59,7 @@ if errorlevel 1 (
 )
 
 REM Version resource
-rc /nologo /v %SOURCE_RES_VER% 2>&1 >nul
+rc /nologo /v %SOURCE_RES_VER% /fo %OUTPUT_RES_VER% 2>&1 >nul
 if errorlevel 1 (
     echo [91m[FAILED][0m Compile resource, %SOURCE_RES_VER%.
 ) else (
@@ -104,7 +104,7 @@ REM Remove compiled resource .res files
 REM echo.
 REM echo [46mRemoving compiled resource .res files.[0m
 REM echo.
-del *.res
+del resources\*.res
 if errorlevel 1 (
     echo [91m[FAILED][0m Delete *.res files.
 ) else (
@@ -156,7 +156,7 @@ REM echo.
 REM echo _________
 REM echo [46mCopying %SC_DEBUGTAIL_FILE% file.[0m
 REM echo.
-copy .\%SC_DEBUGTAIL_FILE% .\%OUTPUT_DIR%\%SC_DEBUGTAIL_FILE% 2>&1 >nul
+copy .\scripts\%SC_DEBUGTAIL_FILE% .\%OUTPUT_DIR%\%SC_DEBUGTAIL_FILE% 2>&1 >nul
 if errorlevel 1 (
     echo [91m[FAILED][0m Copy %SC_DEBUGTAIL_FILE% file.
 ) else (
