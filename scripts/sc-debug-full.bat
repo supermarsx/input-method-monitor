@@ -10,7 +10,7 @@ if errorlevel 1 (
 )
 
 REM Launch the built executable
-pushd "%~dp0dist" >nul
+pushd "%~dp0..\dist" >nul
 kbdlayoutmon.exe
 popd >nul
 
