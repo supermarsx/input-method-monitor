@@ -67,6 +67,18 @@ cmake --build . --target run_tests
 
 `kbdlayoutmon.exe` and `kbdlayoutmonhook.dll` will be produced in `build/Release` with resources and the application manifest embedded.
 
+### Using build2
+The repository also ships with a basic [build2](https://build2.org/) setup. After installing
+the build2 toolchain run:
+
+```bash
+b configure
+b
+b test
+```
+
+Executables will appear in the current directory when the build completes.
+
 ### Batch Script
 Visual Studio with C++ tools is also sufficient. You can run:
 

@@ -6,6 +6,7 @@
 *.dll
 *.exe
 *.res
+/build/
 
 # Logs
 *.log
