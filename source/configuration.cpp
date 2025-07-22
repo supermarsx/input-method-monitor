@@ -79,14 +79,20 @@ void Configuration::load(std::optional<std::wstring> path) {
 
         if (key == L"temp_hotkey_timeout") {
             try {
-                int timeout = std::stoi(value);
+                if (!value.empty() && value[0] == L'-') {
+                    throw std::invalid_argument("negative");
+                }
+                unsigned long timeout = std::stoul(value);
                 settings[key] = std::to_wstring(timeout);
             } catch (...) {
                 settings[key] = L"10000";
             }
         } else if (key == L"max_log_size_mb") {
             try {
-                int size = std::stoi(value);
+                if (!value.empty() && value[0] == L'-') {
+                    throw std::invalid_argument("negative");
+                }
+                unsigned long size = std::stoul(value);
                 settings[key] = std::to_wstring(size);
             } catch (...) {
                 settings[key] = L"10";

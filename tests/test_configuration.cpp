@@ -48,6 +48,16 @@ TEST_CASE("Whitespace handling", "[config]") {
     REQUIRE(settings[L"max_log_size_mb"] == L"10");
 }
 
+TEST_CASE("Negative values fallback", "[config]") {
+    std::vector<std::wstring> lines = {
+        L"TEMP_HOTKEY_TIMEOUT=-5000",
+        L"MAX_LOG_SIZE_MB=-2"
+    };
+    auto settings = parse_config_lines(lines);
+    REQUIRE(settings[L"temp_hotkey_timeout"] == L"10000");
+    REQUIRE(settings[L"max_log_size_mb"] == L"10");
+}
+
 TEST_CASE("Reload custom config file", "[config]") {
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_test";
