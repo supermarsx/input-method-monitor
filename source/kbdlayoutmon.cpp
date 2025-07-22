@@ -12,6 +12,7 @@
 #include "configuration.h"
 #include "constants.h"
 #include "log.h"
+#include "winreg_handle.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
@@ -113,13 +114,15 @@ std::wstring GetUsageString() {
 
 // Helper function to check if app is set to launch at startup
 bool IsStartupEnabled() {
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_READ, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER,
+                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               0, KEY_READ, hKey.receive());
     if (result == ERROR_SUCCESS) {
         wchar_t value[MAX_PATH];
         DWORD value_length = MAX_PATH;
-        result = RegQueryValueEx(hKey, L"kbdlayoutmon", NULL, NULL, (LPBYTE)value, &value_length);
-        RegCloseKey(hKey);
+        result = RegQueryValueEx(hKey.get(), L"kbdlayoutmon", NULL, NULL,
+                                 (LPBYTE)value, &value_length);
         return (result == ERROR_SUCCESS);
     }
     return false;
@@ -127,13 +130,15 @@ bool IsStartupEnabled() {
 
 // Helper function to add application to startup
 void AddToStartup() {
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER,
+                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               0, KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         wchar_t filePath[MAX_PATH];
         GetModuleFileName(NULL, filePath, MAX_PATH);
-        RegSetValueEx(hKey, L"kbdlayoutmon", 0, REG_SZ, (BYTE*)filePath, (lstrlen(filePath) + 1) * sizeof(wchar_t));
-        RegCloseKey(hKey);
+        RegSetValueEx(hKey.get(), L"kbdlayoutmon", 0, REG_SZ, (BYTE*)filePath,
+                      (lstrlen(filePath) + 1) * sizeof(wchar_t));
         WriteLog(L"Added to startup.");
         g_startupEnabled = true;
     } else {
@@ -143,11 +148,12 @@ void AddToStartup() {
 
 // Helper function to remove application from startup
 void RemoveFromStartup() {
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_SET_VALUE, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER,
+                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+                               0, KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
-        RegDeleteValue(hKey, L"kbdlayoutmon");
-        RegCloseKey(hKey);
+        RegDeleteValue(hKey.get(), L"kbdlayoutmon");
         WriteLog(L"Removed from startup.");
         g_startupEnabled = false;
     } else {
@@ -157,13 +163,14 @@ void RemoveFromStartup() {
 
 // Helper function to check the status of Language HotKey
 bool IsLanguageHotKeyEnabled() {
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0, KEY_READ, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
+                               KEY_READ, hKey.receive());
     if (result == ERROR_SUCCESS) {
         wchar_t value[2];
         DWORD value_length = sizeof(value);
-        result = RegQueryValueEx(hKey, L"Language HotKey", NULL, NULL, (LPBYTE)value, &value_length);
-        RegCloseKey(hKey);
+        result = RegQueryValueEx(hKey.get(), L"Language HotKey", NULL, NULL,
+                                 (LPBYTE)value, &value_length);
 
         std::wstringstream ss;
         ss << L"Language HotKey value: " << value;
@@ -178,13 +185,14 @@ bool IsLanguageHotKeyEnabled() {
 
 // Helper function to check the status of Layout HotKey
 bool IsLayoutHotKeyEnabled() {
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0, KEY_READ, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
+                               KEY_READ, hKey.receive());
     if (result == ERROR_SUCCESS) {
         wchar_t value[2];
         DWORD value_length = sizeof(value);
-        result = RegQueryValueEx(hKey, L"Layout HotKey", NULL, NULL, (LPBYTE)value, &value_length);
-        RegCloseKey(hKey);
+        result = RegQueryValueEx(hKey.get(), L"Layout HotKey", NULL, NULL,
+                                 (LPBYTE)value, &value_length);
 
         std::wstringstream ss;
         ss << L"Layout HotKey value: " << value;
@@ -202,8 +210,9 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
     // Detect current state before toggling
     g_languageHotKeyEnabled = IsLanguageHotKeyEnabled();
 
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0, KEY_SET_VALUE, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
+                               KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         const wchar_t* value;
         if (overrideState) {
@@ -213,8 +222,9 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
             value = g_languageHotKeyEnabled ? L"1" : L"3";
             g_languageHotKeyEnabled = !g_languageHotKeyEnabled;
         }
-        RegSetValueEx(hKey, L"Language HotKey", 0, REG_SZ, (const BYTE*)value, (lstrlen(value) + 1) * sizeof(wchar_t));
-        RegCloseKey(hKey);
+        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
+                      (const BYTE*)value,
+                      (lstrlen(value) + 1) * sizeof(wchar_t));
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
@@ -227,8 +237,9 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
     // Detect current state before toggling
     g_layoutHotKeyEnabled = IsLayoutHotKeyEnabled();
 
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0, KEY_SET_VALUE, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
+                               KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         const wchar_t* value;
         if (overrideState) {
@@ -238,8 +249,9 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
             value = g_layoutHotKeyEnabled ? L"2" : L"3";
             g_layoutHotKeyEnabled = !g_layoutHotKeyEnabled;
         }
-        RegSetValueEx(hKey, L"Layout HotKey", 0, REG_SZ, (const BYTE*)value, (lstrlen(value) + 1) * sizeof(wchar_t));
-        RegCloseKey(hKey);
+        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
+                      (const BYTE*)value,
+                      (lstrlen(value) + 1) * sizeof(wchar_t));
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
@@ -257,12 +269,14 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
 
     g_tempHotKeysEnabled = true;
 
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0, KEY_SET_VALUE, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
+                               KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
-        RegSetValueEx(hKey, L"Language HotKey", 0, REG_SZ, (const BYTE*)L"1", (lstrlen(L"1") + 1) * sizeof(wchar_t));
-        RegSetValueEx(hKey, L"Layout HotKey", 0, REG_SZ, (const BYTE*)L"2", (lstrlen(L"2") + 1) * sizeof(wchar_t));
-        RegCloseKey(hKey);
+        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ, (const BYTE*)L"1",
+                      (lstrlen(L"1") + 1) * sizeof(wchar_t));
+        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ, (const BYTE*)L"2",
+                      (lstrlen(L"2") + 1) * sizeof(wchar_t));
         WriteLog(L"Temporarily enabled hotkeys.");
 
         // Update the global status

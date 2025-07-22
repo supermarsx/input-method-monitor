@@ -12,6 +12,7 @@
 #include <condition_variable>
 #include <queue>
 #include "configuration.h"
+#include "winreg_handle.h"
 
 std::atomic<bool> g_debugEnabled{false};
 HINSTANCE g_hInst = NULL;
@@ -73,10 +74,13 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
     }
 
     // Update Keyboard Layout Preload
-    HKEY hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Preload", 0, KEY_SET_VALUE, &hKey);
+    WinRegHandle hKey;
+    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Preload", 0,
+                               KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
-        result = RegSetValueEx(hKey, L"1", 0, REG_SZ, (const BYTE*)klid.c_str(), (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
+        result = RegSetValueEx(hKey.get(), L"1", 0, REG_SZ,
+                              (const BYTE*)klid.c_str(),
+                              (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (Preload) to Locale ID: " << localeID << L", KLID: " << klid;
@@ -86,16 +90,18 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
             ss << L"Failed to set default input method in registry (Preload). Error code: " << result;
             WriteLog(ss.str().c_str());
         }
-        RegCloseKey(hKey);
     } else {
         std::wstringstream ss;
         ss << L"Failed to open registry key (Preload). Error code: " << result;
         WriteLog(ss.str().c_str());
     }
 
-    result = RegOpenKeyEx(HKEY_USERS, L".DEFAULT\\Keyboard Layout\\Preload", 0, KEY_SET_VALUE, &hKey);
+    result = RegOpenKeyEx(HKEY_USERS, L".DEFAULT\\Keyboard Layout\\Preload", 0,
+                          KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
-        result = RegSetValueEx(hKey, L"1", 0, REG_SZ, (const BYTE*)klid.c_str(), (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
+        result = RegSetValueEx(hKey.get(), L"1", 0, REG_SZ,
+                              (const BYTE*)klid.c_str(),
+                              (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (DEFAULT Preload) to Locale ID: " << localeID << L", KLID: " << klid;
@@ -105,7 +111,6 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
             ss << L"Failed to set default input method in registry (DEFAULT Preload). Error code: " << result;
             WriteLog(ss.str().c_str());
         }
-        RegCloseKey(hKey);
     } else {
         std::wstringstream ss;
         ss << L"Failed to open registry key (Preload). Error code: " << result;
@@ -113,10 +118,14 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
     }
 
     // Update Control Panel International User Profile
-    result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Control Panel\\International\\User Profile", 0, KEY_SET_VALUE, &hKey);
+    result = RegOpenKeyEx(HKEY_CURRENT_USER,
+                          L"Control Panel\\International\\User Profile", 0,
+                          KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         std::wstring value = localeID + L":" + klid;
-        result = RegSetValueEx(hKey, L"InputMethodOverride", 0, REG_SZ, (const BYTE*)value.c_str(), (DWORD)((value.size() + 1) * sizeof(wchar_t)));
+        result = RegSetValueEx(hKey.get(), L"InputMethodOverride", 0, REG_SZ,
+                               (const BYTE*)value.c_str(),
+                               (DWORD)((value.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (InputMethodOverride) to " << value;
@@ -126,7 +135,6 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
             ss << L"Failed to set default input method in registry (InputMethodOverride). Error code: " << result;
             WriteLog(ss.str().c_str());
         }
-        RegCloseKey(hKey);
     } else {
         std::wstringstream ss;
         ss << L"Failed to open registry key (User Profile). Error code: " << result;
