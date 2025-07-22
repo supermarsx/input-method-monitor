@@ -9,21 +9,22 @@
 
 inline std::map<std::wstring, std::wstring> parse_config_lines(const std::vector<std::wstring>& lines) {
     std::map<std::wstring, std::wstring> settings;
-    for (std::wstring line : lines) {
-        size_t start = line.find_first_not_of(L" \t\r\n");
+    for (const std::wstring& line : lines) {
+        std::wstring currentLine = line;
+        size_t start = currentLine.find_first_not_of(L" \t\r\n");
         if (start == std::wstring::npos)
             continue;
-        size_t end = line.find_last_not_of(L" \t\r\n");
-        line = line.substr(start, end - start + 1);
-        if (line.empty())
+        size_t end = currentLine.find_last_not_of(L" \t\r\n");
+        currentLine = currentLine.substr(start, end - start + 1);
+        if (currentLine.empty())
             continue;
 
-        size_t eqPos = line.find(L'=');
+        size_t eqPos = currentLine.find(L'=');
         if (eqPos == std::wstring::npos)
             continue;
 
-        std::wstring key = line.substr(0, eqPos);
-        std::wstring value = line.substr(eqPos + 1);
+        std::wstring key = currentLine.substr(0, eqPos);
+        std::wstring value = currentLine.substr(eqPos + 1);
 
         auto trim = [](std::wstring &s) {
             size_t start = s.find_first_not_of(L" \t\r\n");
