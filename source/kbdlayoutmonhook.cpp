@@ -163,6 +163,25 @@ void StopWorkerThread() {
         g_workerThread.join();
 }
 
+// Initialize global state after loading the DLL
+extern "C" __declspec(dllexport) BOOL InitHookModule() {
+    g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
+    g_config.load();
+    auto it = g_config.settings.find(L"debug");
+    g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+    StartWorkerThread();
+    return TRUE;
+}
+
+// Cleanup state before unloading the DLL
+extern "C" __declspec(dllexport) void CleanupHookModule() {
+    StopWorkerThread();
+    if (g_hMutex) {
+        CloseHandle(g_hMutex);
+        g_hMutex = NULL;
+    }
+}
+
 // Hook procedure to monitor system-wide messages
 LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
     if (nCode == HSHELL_LANGUAGE) {
@@ -203,7 +222,6 @@ extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
         WriteLog(ss.str().c_str());
         return FALSE;
     }
-    StartWorkerThread();
     IncrementRefCount();
     WriteLog(L"Global hook installed successfully.");
     return TRUE;
@@ -222,7 +240,6 @@ extern "C" __declspec(dllexport) void UninstallGlobalHook() {
         }
         g_hHook = NULL;
     }
-    StopWorkerThread();
     DecrementRefCount();
     WriteLog(L"DLL unloaded.");
 }
@@ -277,17 +294,10 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     switch (fdwReason) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
-            g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
-            g_config.load();
-            {
-                auto it = g_config.settings.find(L"debug");
-                g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
-            }
+            DisableThreadLibraryCalls(hinstDLL);
             break;
         case DLL_PROCESS_DETACH:
-            if (g_hMutex)
-                CloseHandle(g_hMutex);
-            StopWorkerThread();
+            g_hInst = NULL;
             break;
     }
     return TRUE;
