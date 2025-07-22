@@ -5,20 +5,20 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(COMMON_SOURCES
-    configuration.cpp
+    source/configuration.cpp
 )
 
 # kbdlayoutmon executable
 add_executable(kbdlayoutmon
-    kbdlayoutmon.cpp
+    source/kbdlayoutmon.cpp
     ${COMMON_SOURCES}
-    log.cpp
+    source/log.cpp
     resources/res-icon.rc
     resources/res-versioninfo.rc
 )
 
 # Include directory for rc file header
-target_include_directories(kbdlayoutmon PRIVATE resources)
+target_include_directories(kbdlayoutmon PRIVATE resources source)
 
 target_link_libraries(kbdlayoutmon
     shlwapi
@@ -39,11 +39,13 @@ endif()
 
 # kbdlayoutmonhook DLL
 add_library(kbdlayoutmonhook SHARED
-    kbdlayoutmonhook.cpp
+    source/kbdlayoutmonhook.cpp
     ${COMMON_SOURCES}
 )
 
 set_target_properties(kbdlayoutmonhook PROPERTIES PREFIX "")
+
+target_include_directories(kbdlayoutmonhook PRIVATE source)
 
 target_link_libraries(kbdlayoutmonhook
     shlwapi
