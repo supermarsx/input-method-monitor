@@ -35,7 +35,6 @@ void StopConfigWatcher();
 
 HINSTANCE g_hInst = NULL;
 HMODULE g_hDll = NULL;
-HANDLE g_hMutex = NULL;  // Declare the mutex handle
 HANDLE g_hInstanceMutex = NULL; // Mutex to enforce single instance
 typedef BOOL(*InstallGlobalHookFunc)();
 typedef void(*UninstallGlobalHookFunc)();
@@ -44,6 +43,8 @@ typedef void(*SetLayoutHotKeyEnabledFunc)(bool);
 typedef bool(*GetLanguageHotKeyEnabledFunc)();
 typedef bool(*GetLayoutHotKeyEnabledFunc)();
 typedef void(*SetDebugLoggingEnabledFunc)(bool);
+typedef BOOL(*InitHookModuleFunc)();
+typedef void(*CleanupHookModuleFunc)();
 
 InstallGlobalHookFunc InstallGlobalHook = NULL;
 UninstallGlobalHookFunc UninstallGlobalHook = NULL;
@@ -52,6 +53,8 @@ SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = NULL;
 GetLanguageHotKeyEnabledFunc GetLanguageHotKeyEnabled = NULL;
 GetLayoutHotKeyEnabledFunc GetLayoutHotKeyEnabled = NULL;
 SetDebugLoggingEnabledFunc SetDebugLoggingEnabled = NULL;
+InitHookModuleFunc InitHookModule = NULL;
+CleanupHookModuleFunc CleanupHookModule = NULL;
 
 std::mutex g_mutex;
 std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug logging
@@ -712,13 +715,28 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     GetLanguageHotKeyEnabled = (GetLanguageHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLanguageHotKeyEnabled");
     GetLayoutHotKeyEnabled = (GetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLayoutHotKeyEnabled");
     SetDebugLoggingEnabled = (SetDebugLoggingEnabledFunc)GetProcAddress(g_hDll, "SetDebugLoggingEnabled");
+    InitHookModule = (InitHookModuleFunc)GetProcAddress(g_hDll, "InitHookModule");
+    CleanupHookModule = (CleanupHookModuleFunc)GetProcAddress(g_hDll, "CleanupHookModule");
 
     if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled ||
-        !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabled) {
+        !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabled ||
+        !InitHookModule || !CleanupHookModule) {
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str().c_str());
+        FreeLibrary(g_hDll);
+        if (g_hInstanceMutex) {
+            ReleaseMutex(g_hInstanceMutex);
+            CloseHandle(g_hInstanceMutex);
+        }
+        StopConfigWatcher();
+        return 1;
+    }
+
+    // Initialize the hook module now that it's loaded
+    if (!InitHookModule()) {
+        WriteLog(L"Failed to initialize hook module.");
         FreeLibrary(g_hDll);
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
@@ -742,9 +760,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 1;
     }
 
-    // Initialize the mutex
-    g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
-
     // Update the shared memory values at startup
     SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
     SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
@@ -757,8 +772,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     StopConfigWatcher();
     UninstallGlobalHook();
+    CleanupHookModule();
     FreeLibrary(g_hDll);
-    CloseHandle(g_hMutex); // Close the mutex handle
     if (g_hInstanceMutex) {
         ReleaseMutex(g_hInstanceMutex);
         CloseHandle(g_hInstanceMutex);
