@@ -4,6 +4,7 @@
 #include <string>
 #include <shlwapi.h>
 #include <mutex>
+#include <atomic>
 #include <sstream>
 #include <iomanip>
 #include <combaseapi.h>
@@ -12,7 +13,7 @@
 #include <queue>
 #include "configuration.h"
 
-bool g_debugEnabled = false;
+std::atomic<bool> g_debugEnabled{false};
 HINSTANCE g_hInst = NULL;
 HHOOK g_hHook = NULL;
 std::mutex g_mutex;
@@ -20,8 +21,8 @@ std::mutex g_mutex;
 #pragma data_seg(".shared")
 HKL g_lastHKL = NULL; // Declare g_lastHKL in the shared memory segment
 LONG g_refCount = 0;
-bool g_languageHotKeyEnabled = false; // Shared variable for Language HotKey status
-bool g_layoutHotKeyEnabled = false; // Shared variable for Layout HotKey status
+std::atomic<bool> g_languageHotKeyEnabled{false}; // Shared variable for Language HotKey status
+std::atomic<bool> g_layoutHotKeyEnabled{false}; // Shared variable for Layout HotKey status
 #pragma data_seg()
 #pragma comment(linker, "/SECTION:.shared,RWS")
 
@@ -66,10 +67,8 @@ std::wstring GetLocaleID(HKL hkl) {
 
 // Function to set the default input method in the registry
 void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::wstring& klid) {
-    WaitForSingleObject(g_hMutex, INFINITE); // Lock mutex
     if (!g_languageHotKeyEnabled && !g_layoutHotKeyEnabled) {
         WriteLog(L"HotKeys are disabled. Skipping registry update.");
-        ReleaseMutex(g_hMutex); // Release mutex
         return;
     }
 
@@ -133,7 +132,6 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
         ss << L"Failed to open registry key (User Profile). Error code: " << result;
         WriteLog(ss.str().c_str());
     }
-    ReleaseMutex(g_hMutex); // Release mutex
 }
 
 void WorkerThread() {
@@ -251,32 +249,22 @@ void DecrementRefCount() {
 
 // Function to get the Language HotKey enabled state
 extern "C" __declspec(dllexport) bool GetLanguageHotKeyEnabled() {
-    WaitForSingleObject(g_hMutex, INFINITE);
-    bool enabled = g_languageHotKeyEnabled;
-    ReleaseMutex(g_hMutex);
-    return enabled;
+    return g_languageHotKeyEnabled.load();
 }
 
 // Function to get the Layout HotKey enabled state
 extern "C" __declspec(dllexport) bool GetLayoutHotKeyEnabled() {
-    WaitForSingleObject(g_hMutex, INFINITE);
-    bool enabled = g_layoutHotKeyEnabled;
-    ReleaseMutex(g_hMutex);
-    return enabled;
+    return g_layoutHotKeyEnabled.load();
 }
 
 // Function to set the Language HotKey enabled state
 extern "C" __declspec(dllexport) void SetLanguageHotKeyEnabled(bool enabled) {
-    WaitForSingleObject(g_hMutex, INFINITE);
     g_languageHotKeyEnabled = enabled;
-    ReleaseMutex(g_hMutex);
 }
 
 // Function to set the Layout HotKey enabled state
 extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
-    WaitForSingleObject(g_hMutex, INFINITE);
     g_layoutHotKeyEnabled = enabled;
-    ReleaseMutex(g_hMutex);
 }
 
 // Function to update debug logging state

@@ -3,10 +3,11 @@
 #include <fstream>
 #include <shlwapi.h>
 #include <utility>
+#include <atomic>
 #include "configuration.h"
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
-extern bool g_debugEnabled;
+extern std::atomic<bool> g_debugEnabled;
 
 namespace {
 std::wstring GetLogPath() {

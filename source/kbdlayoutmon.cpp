@@ -4,6 +4,7 @@
 #include <fstream>
 #include <shlwapi.h>
 #include <mutex>
+#include <atomic>
 #include <sstream>
 #include <shellapi.h>
 #include <vector>
@@ -53,12 +54,12 @@ GetLayoutHotKeyEnabledFunc GetLayoutHotKeyEnabled = NULL;
 SetDebugLoggingEnabledFunc SetDebugLoggingEnabled = NULL;
 
 std::mutex g_mutex;
-bool g_debugEnabled = false; // Global variable to control debug logging
-bool g_trayIconEnabled = true; // Global variable to control tray icon
+std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug logging
+std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray icon
 bool g_startupEnabled = false; // Global variable to track startup status
-bool g_languageHotKeyEnabled = false; // Global variable to track Language HotKey status
-bool g_layoutHotKeyEnabled = false; // Global variable to track Layout HotKey status
-bool g_tempHotKeysEnabled = false; // Global flag to track temporary hotkeys status
+std::atomic<bool> g_languageHotKeyEnabled{false}; // Global variable to track Language HotKey status
+std::atomic<bool> g_layoutHotKeyEnabled{false}; // Global variable to track Layout HotKey status
+std::atomic<bool> g_tempHotKeysEnabled{false}; // Global flag to track temporary hotkeys status
 DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseconds
 NOTIFYICONDATA nid;
 HWND g_hwnd = NULL;                // Handle to our message window
@@ -214,9 +215,7 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
-        WaitForSingleObject(g_hMutex, INFINITE);
         SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
-        ReleaseMutex(g_hMutex);
     }
 }
 
@@ -241,9 +240,7 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
-        WaitForSingleObject(g_hMutex, INFINITE);
         SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
-        ReleaseMutex(g_hMutex);
     }
 }
 
@@ -273,10 +270,8 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory values
-        WaitForSingleObject(g_hMutex, INFINITE);
         SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
         SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
-        ReleaseMutex(g_hMutex);
 
         // Set a timer to revert changes after configured timeout
         SetTimer(hwnd, 1, g_tempHotKeyTimeout, NULL);
@@ -751,10 +746,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
 
     // Update the shared memory values at startup
-    WaitForSingleObject(g_hMutex, INFINITE);
     SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
     SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
-    ReleaseMutex(g_hMutex);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
