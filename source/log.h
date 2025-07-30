@@ -31,6 +31,9 @@ private:
 
 extern Log g_log;
 
+// Verbose logging flag shared across modules
+extern std::atomic<bool> g_verbose;
+
 // Exported helper for modules that share the logging system
 extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message);
 // Exported helper to toggle debug logging state in the DLL

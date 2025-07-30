@@ -8,6 +8,7 @@
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
 extern std::atomic<bool> g_debugEnabled;
+extern std::atomic<bool> g_verbose;
 
 namespace {
 std::wstring GetLogPath() {
@@ -71,6 +72,18 @@ void Log::write(const std::wstring& message) {
         m_queue.push(message);
     }
     m_cv.notify_one();
+
+    if (g_verbose) {
+        if (AttachConsole(ATTACH_PARENT_PROCESS) || GetConsoleWindow()) {
+            FILE* fp = _wfopen(L"CONOUT$", L"a");
+            if (fp) {
+                fwprintf(fp, L"%s\n", message.c_str());
+                fclose(fp);
+            }
+            if (!GetConsoleWindow())
+                FreeConsole();
+        }
+    }
 }
 
 void Log::process() {

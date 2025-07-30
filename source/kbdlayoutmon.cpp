@@ -59,7 +59,9 @@ CleanupHookModuleFunc CleanupHookModule = NULL;
 
 std::mutex g_mutex;
 std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug logging
+std::atomic<bool> g_verbose{false};      // Global variable for verbose logging
 std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray icon
+std::atomic<bool> g_cliMode{false};      // Global flag for CLI mode
 bool g_startupEnabled = false; // Global variable to track startup status
 std::atomic<bool> g_languageHotKeyEnabled{false}; // Global variable to track Language HotKey status
 std::atomic<bool> g_layoutHotKeyEnabled{false}; // Global variable to track Layout HotKey status
@@ -104,8 +106,14 @@ std::wstring GetUsageString() {
         L"Usage: kbdlayoutmon [options]\n\n"
         L"Options:\n"
         L"  --config <path>  Load configuration from the specified file\n"
+        L"  --cli        Run in command line mode (no tray icon)\n"
+        L"  --verbose    Print log messages to the console\n"
         L"  --no-tray    Run without the system tray icon\n"
         L"  --debug      Enable debug logging\n"
+        L"  --tray-icon <0|1>          Override tray icon setting\n"
+        L"  --temp-hotkey-timeout <ms> Set temporary hotkey timeout\n"
+        L"  --log-path <file>          Write log to the specified file\n"
+        L"  --max-log-size-mb <n>      Rotate log after n megabytes\n"
         L"  --version    Print the application version and exit\n"
         L"  --help       Show this help message and exit";
 }
@@ -315,7 +323,7 @@ void OnTimer(HWND hwnd) {
 
 // Function to add the tray icon
 void AddTrayIcon(HWND hwnd) {
-    if (!g_trayIconEnabled) return; // Do not add tray icon if disabled in config
+    if (!g_trayIconEnabled || g_cliMode) return; // Do not add tray icon if disabled or in CLI mode
 
     ZeroMemory(&nid, sizeof(nid));
     nid.cbSize = sizeof(NOTIFYICONDATA);
@@ -568,7 +576,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_hInstanceMutex = CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton");
     if (g_hInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         WriteLog(L"Another instance is already running.");
-        MessageBox(NULL, L"Another instance is already running.", L"Input Method Monitor", MB_ICONEXCLAMATION | MB_OK);
+        if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+            FILE* fp = _wfopen(L"CONOUT$", L"w");
+            if (fp) {
+                fwprintf(fp, L"Another instance is already running.\n");
+                fclose(fp);
+            }
+            FreeConsole();
+        } else {
+            MessageBox(NULL, L"Another instance is already running.", L"Input Method Monitor", MB_ICONEXCLAMATION | MB_OK);
+        }
         ReleaseMutex(g_hInstanceMutex);
         CloseHandle(g_hInstanceMutex);
         return 0;
@@ -596,6 +613,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         for (int i = 1; i < argc; ++i) {
             if (wcscmp(argv[i], L"--config") == 0 && i + 1 < argc) {
                 ++i; // skip the path argument
+            } else if (wcscmp(argv[i], L"--cli") == 0) {
+                g_cliMode = true;
+                g_trayIconEnabled = false;
+            } else if (wcscmp(argv[i], L"--verbose") == 0) {
+                g_verbose = true;
+                if (!g_debugEnabled) {
+                    g_debugEnabled = true;
+                    if (SetDebugLoggingEnabled)
+                        SetDebugLoggingEnabled(true);
+                }
             } else if (wcscmp(argv[i], L"--no-tray") == 0) {
                 g_trayIconEnabled = false;
             } else if (wcscmp(argv[i], L"--debug") == 0) {
@@ -604,15 +631,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     if (SetDebugLoggingEnabled)
                         SetDebugLoggingEnabled(true);
                 }
+            } else if (wcscmp(argv[i], L"--tray-icon") == 0 && i + 1 < argc) {
+                g_config.settings[L"tray_icon"] = argv[i + 1];
+                g_trayIconEnabled = wcscmp(argv[i + 1], L"0") != 0;
+                ++i;
+            } else if (wcscmp(argv[i], L"--temp-hotkey-timeout") == 0 && i + 1 < argc) {
+                g_config.settings[L"temp_hotkey_timeout"] = argv[i + 1];
+                g_tempHotKeyTimeout = std::wcstoul(argv[i + 1], nullptr, 10);
+                ++i;
+            } else if (wcscmp(argv[i], L"--log-path") == 0 && i + 1 < argc) {
+                g_config.settings[L"log_path"] = argv[i + 1];
+                ++i;
+            } else if (wcscmp(argv[i], L"--max-log-size-mb") == 0 && i + 1 < argc) {
+                g_config.settings[L"max_log_size_mb"] = argv[i + 1];
+                ++i;
             } else if (wcscmp(argv[i], L"--version") == 0) {
                 std::wstring version = GetVersionString();
-                if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+                if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
                     FILE* fp = _wfopen(L"CONOUT$", L"w");
                     if (fp) {
                         fwprintf(fp, L"%s\n", version.c_str());
                         fclose(fp);
                     }
-                    FreeConsole();
+                    if (!g_cliMode)
+                        FreeConsole();
                 } else {
                     MessageBox(NULL, version.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
                 }
@@ -624,13 +666,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 return 0;
             } else if (wcscmp(argv[i], L"--help") == 0) {
                 std::wstring usage = GetUsageString();
-                if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+                if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
                     FILE* fp = _wfopen(L"CONOUT$", L"w");
                     if (fp) {
                         fwprintf(fp, L"%s\n", usage.c_str());
                         fclose(fp);
                     }
-                    FreeConsole();
+                    if (!g_cliMode)
+                        FreeConsole();
                 } else {
                     MessageBox(NULL, usage.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
                 }

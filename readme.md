@@ -36,8 +36,14 @@ configuration file. Use `--help` to display a summary at runtime:
 
 ```
 --config <path>  Load configuration from the specified file
+--cli        Run in command line mode (no tray icon)
+--verbose    Print log messages to the console
 --no-tray    Run without the system tray icon
 --debug      Enable debug logging
+--tray-icon <0|1>          Override tray icon setting
+--temp-hotkey-timeout <ms> Set temporary hotkey timeout
+--log-path <file>          Write log to the specified file
+--max-log-size-mb <n>      Rotate log after n megabytes
 --version    Print the application version and exit
 --help       Show this help text
 ```
