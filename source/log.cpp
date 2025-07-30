@@ -28,6 +28,7 @@ std::wstring GetLogPath() {
 }
 }
 
+/// Global log instance used by the executable and DLL.
 Log g_log;
 
 extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
