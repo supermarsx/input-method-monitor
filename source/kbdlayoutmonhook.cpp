@@ -171,7 +171,10 @@ void StopWorkerThread() {
         g_workerThread.join();
 }
 
-// Initialize global state after loading the DLL
+/**
+ * @brief Initialize global state after loading the DLL.
+ * @return TRUE on success.
+ */
 extern "C" __declspec(dllexport) BOOL InitHookModule() {
     g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
     g_config.load();
@@ -181,7 +184,9 @@ extern "C" __declspec(dllexport) BOOL InitHookModule() {
     return TRUE;
 }
 
-// Cleanup state before unloading the DLL
+/**
+ * @brief Cleanup state before the DLL is unloaded.
+ */
 extern "C" __declspec(dllexport) void CleanupHookModule() {
     StopWorkerThread();
     if (g_hMutex) {
@@ -215,7 +220,10 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
     return CallNextHookEx(g_hHook, nCode, wParam, lParam);
 }
 
-// Function to install the global hook
+/**
+ * @brief Install the shell hook used to monitor layout changes.
+ * @return TRUE if the hook was successfully installed.
+ */
 extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
     if (g_lastHKL == NULL) {
         g_lastHKL = GetKeyboardLayout(0);
@@ -235,7 +243,9 @@ extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
     return TRUE;
 }
 
-// Function to uninstall the global hook
+/**
+ * @brief Remove the previously installed shell hook.
+ */
 extern "C" __declspec(dllexport) void UninstallGlobalHook() {
     if (g_hHook != NULL) {
         if (UnhookWindowsHookEx(g_hHook)) {
@@ -272,31 +282,47 @@ void DecrementRefCount() {
     ReleaseMutex(g_hMutex);
 }
 
-// Function to get the Language HotKey enabled state
+/**
+ * @brief Query whether the Windows "Language" hotkey is enabled.
+ */
 extern "C" __declspec(dllexport) bool GetLanguageHotKeyEnabled() {
     return g_languageHotKeyEnabled.load();
 }
 
-// Function to get the Layout HotKey enabled state
+/**
+ * @brief Query whether the Windows "Layout" hotkey is enabled.
+ */
 extern "C" __declspec(dllexport) bool GetLayoutHotKeyEnabled() {
     return g_layoutHotKeyEnabled.load();
 }
 
-// Function to set the Language HotKey enabled state
+/**
+ * @brief Set the Language hotkey state shared with the executable.
+ * @param enabled New enabled flag.
+ */
 extern "C" __declspec(dllexport) void SetLanguageHotKeyEnabled(bool enabled) {
     g_languageHotKeyEnabled = enabled;
 }
 
-// Function to set the Layout HotKey enabled state
+/**
+ * @brief Set the Layout hotkey state shared with the executable.
+ * @param enabled New enabled flag.
+ */
 extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
     g_layoutHotKeyEnabled = enabled;
 }
 
-// Function to update debug logging state
+/**
+ * @brief Update debug logging state for the DLL.
+ * @param enabled When true, log messages are written.
+ */
 extern "C" __declspec(dllexport) void SetDebugLoggingEnabled(bool enabled) {
     g_debugEnabled = enabled;
 }
 
+/**
+ * @brief Standard DLL entry point called by the loader.
+ */
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
     UNREFERENCED_PARAMETER(lpReserved);
     switch (fdwReason) {
