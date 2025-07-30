@@ -329,6 +329,11 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
         case DLL_PROCESS_ATTACH:
             g_hInst = hinstDLL;
             DisableThreadLibraryCalls(hinstDLL);
+            g_config.load();
+            {
+                auto it = g_config.settings.find(L"debug");
+                g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+            }
             break;
         case DLL_PROCESS_DETACH:
             g_hInst = NULL;
