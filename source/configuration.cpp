@@ -8,7 +8,7 @@
 
 extern HINSTANCE g_hInst; // Provided by the executable
 
-// Global configuration instance shared across modules
+/// Global configuration instance shared across modules.
 Configuration g_config;
 
 void Configuration::load(std::optional<std::wstring> path) {

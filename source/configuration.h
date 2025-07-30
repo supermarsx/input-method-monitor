@@ -4,23 +4,40 @@
 #include <string>
 #include <optional>
 
+/**
+ * @brief Manages configuration settings loaded from a file.
+ *
+ * Keys are stored in lower case to simplify lookups.  Values are kept
+ * verbatim after trimming whitespace.
+ */
 class Configuration {
 public:
-    // map containing lowercased keys from the config file
+    /// Map containing lower‑cased keys from the configuration file.
     std::map<std::wstring, std::wstring> settings;
 
-    // Load configuration from the given path. If no path is provided,
-    // the previously loaded path is used. When no path has been loaded
-    // yet, the default configuration file next to the executable is used.
-    //
-    // Passing std::nullopt behaves the same as calling without an argument.
+    /**
+     * @brief Load configuration from a file.
+     *
+     * If @p path is empty or @c std::nullopt, the previously loaded
+     * path is reused. When no file has been loaded yet, the default
+     * configuration file next to the executable is used.
+     *
+     * @param path Optional path to a configuration file.
+     * @return void
+     * @sideeffects Updates #settings and remembers the last path.
+     */
     void load(std::optional<std::wstring> path = std::nullopt);
 
-    // Retrieve the path of the last loaded configuration file
+    /**
+     * @brief Retrieve the path of the last loaded configuration file.
+     * @return Absolute path of the last successfully loaded file.
+     */
     std::wstring getLastPath() const;
 
 private:
-    std::wstring m_lastPath; // remembers the path of the last loaded config
+    /// Stores the path of the most recently loaded configuration file.
+    std::wstring m_lastPath;
 };
 
-extern Configuration g_config; // Shared configuration instance
+/// Global configuration instance shared across modules.
+extern Configuration g_config;
