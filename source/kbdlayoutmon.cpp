@@ -143,9 +143,13 @@ void AddToStartup() {
                                0, KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         wchar_t filePath[MAX_PATH];
-        GetModuleFileName(NULL, filePath, MAX_PATH);
-        RegSetValueEx(hKey.get(), L"kbdlayoutmon", 0, REG_SZ, (BYTE*)filePath,
-                      (lstrlen(filePath) + 1) * sizeof(wchar_t));
+        GetModuleFileNameW(NULL, filePath, MAX_PATH);
+        std::wstring quotedPath = L"\"";
+        quotedPath += filePath;
+        quotedPath += L"\"";
+        RegSetValueExW(hKey.get(), L"kbdlayoutmon", 0, REG_SZ,
+                       reinterpret_cast<const BYTE*>(quotedPath.c_str()),
+                       (quotedPath.size() + 1) * sizeof(wchar_t));
         WriteLog(L"Added to startup.");
         g_startupEnabled = true;
     } else {
