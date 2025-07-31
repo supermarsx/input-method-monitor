@@ -58,6 +58,20 @@ TEST_CASE("Negative values fallback", "[config]") {
     REQUIRE(settings[L"max_log_size_mb"] == L"10");
 }
 
+TEST_CASE("Comment lines are ignored", "[config]") {
+    std::vector<std::wstring> lines = {
+        L"# comment line",
+        L"; another",
+        L"DEBUG=1",
+        L"  #indented",
+        L"TRAY_ICON=1"
+    };
+    auto settings = parse_config_lines(lines);
+    REQUIRE(settings[L"debug"] == L"1");
+    REQUIRE(settings[L"tray_icon"] == L"1");
+    REQUIRE(settings.size() == 2);
+}
+
 TEST_CASE("Reload custom config file", "[config]") {
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_test";

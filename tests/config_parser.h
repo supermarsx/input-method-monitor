@@ -19,6 +19,9 @@ inline std::map<std::wstring, std::wstring> parse_config_lines(const std::vector
         if (currentLine.empty())
             continue;
 
+        if (currentLine[0] == L'#' || currentLine[0] == L';')
+            continue;
+
         size_t eqPos = currentLine.find(L'=');
         if (eqPos == std::wstring::npos)
             continue;
