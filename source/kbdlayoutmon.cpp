@@ -144,10 +144,17 @@ void AddToStartup() {
     if (result == ERROR_SUCCESS) {
         wchar_t filePath[MAX_PATH];
         GetModuleFileName(NULL, filePath, MAX_PATH);
-        RegSetValueEx(hKey.get(), L"kbdlayoutmon", 0, REG_SZ, (BYTE*)filePath,
-                      (lstrlen(filePath) + 1) * sizeof(wchar_t));
-        WriteLog(L"Added to startup.");
-        g_startupEnabled = true;
+        result = RegSetValueEx(hKey.get(), L"kbdlayoutmon", 0, REG_SZ,
+                              (BYTE*)filePath,
+                              (lstrlen(filePath) + 1) * sizeof(wchar_t));
+        if (result == ERROR_SUCCESS) {
+            WriteLog(L"Added to startup.");
+            g_startupEnabled = true;
+        } else {
+            std::wstringstream ss;
+            ss << L"Failed to write startup registry value. Error code: " << result;
+            WriteLog(ss.str().c_str());
+        }
     } else {
         WriteLog(L"Failed to add to startup.");
     }
@@ -229,9 +236,16 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
             value = g_languageHotKeyEnabled ? L"1" : L"3";
             g_languageHotKeyEnabled = !g_languageHotKeyEnabled;
         }
-        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
-                      (const BYTE*)value,
-                      (lstrlen(value) + 1) * sizeof(wchar_t));
+        result = RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
+                              (const BYTE*)value,
+                              (lstrlen(value) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            std::wstringstream ss;
+            ss << L"Failed to update Language HotKey. Error code: " << result;
+            WriteLog(ss.str().c_str());
+        } else {
+            WriteLog(L"Language HotKey registry value updated.");
+        }
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
@@ -256,9 +270,16 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
             value = g_layoutHotKeyEnabled ? L"2" : L"3";
             g_layoutHotKeyEnabled = !g_layoutHotKeyEnabled;
         }
-        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
-                      (const BYTE*)value,
-                      (lstrlen(value) + 1) * sizeof(wchar_t));
+        result = RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
+                              (const BYTE*)value,
+                              (lstrlen(value) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            std::wstringstream ss;
+            ss << L"Failed to update Layout HotKey. Error code: " << result;
+            WriteLog(ss.str().c_str());
+        } else {
+            WriteLog(L"Layout HotKey registry value updated.");
+        }
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
