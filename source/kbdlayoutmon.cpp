@@ -65,6 +65,7 @@ std::atomic<bool> g_languageHotKeyEnabled{false}; // Global variable to track La
 std::atomic<bool> g_layoutHotKeyEnabled{false}; // Global variable to track Layout HotKey status
 std::atomic<bool> g_tempHotKeysEnabled{false}; // Global flag to track temporary hotkeys status
 DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseconds
+bool g_cliMode = false;                     // Suppress GUI/tray behavior
 NOTIFYICONDATA nid;
 HWND g_hwnd = NULL;                // Handle to our message window
 HANDLE g_hConfigThread = NULL;     // Thread monitoring config file
@@ -106,6 +107,12 @@ std::wstring GetUsageString() {
         L"  --config <path>  Load configuration from the specified file\n"
         L"  --no-tray    Run without the system tray icon\n"
         L"  --debug      Enable debug logging\n"
+        L"  --verbose    Increase logging verbosity\n"
+        L"  --cli        Run in CLI mode without GUI/tray icon\n"
+        L"  --tray-icon <0|1>        Override tray icon setting\n"
+        L"  --temp-hotkey-timeout <ms>  Override temporary hotkey timeout\n"
+        L"  --log-path <path>          Override log file location\n"
+        L"  --max-log-size-mb <num>    Override max log size\n"
         L"  --version    Print the application version and exit\n"
         L"  --help       Show this help message and exit";
 }
@@ -569,17 +576,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     g_hInst = hInstance;
 
-    // Create a named mutex to ensure a single instance
-    g_hInstanceMutex = CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton");
-    if (g_hInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-        WriteLog(L"Another instance is already running.");
-        MessageBox(NULL, L"Another instance is already running.", L"Input Method Monitor", MB_ICONEXCLAMATION | MB_OK);
-        ReleaseMutex(g_hInstanceMutex);
-        CloseHandle(g_hInstanceMutex);
-        return 0;
-    }
-
-    // Parse command line arguments early to check for a custom config file
     int argc = 0;
     LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     std::wstring customConfigPath;
@@ -587,9 +583,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         for (int i = 1; i < argc; ++i) {
             if (wcscmp(argv[i], L"--config") == 0 && i + 1 < argc) {
                 customConfigPath = argv[i + 1];
-                break;
+                ++i;
+            } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
+                g_cliMode = true;
             }
         }
+    }
+
+    // Create a named mutex to ensure a single instance
+    g_hInstanceMutex = CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton");
+    if (g_hInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        WriteLog(L"Another instance is already running.");
+        if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
+            FILE* fp = _wfopen(L"CONOUT$", L"w");
+            if (fp) {
+                fwprintf(fp, L"Another instance is already running.\n");
+                fclose(fp);
+            }
+            if (!g_cliMode)
+                FreeConsole();
+        } else {
+            MessageBox(NULL, L"Another instance is already running.", L"Input Method Monitor", MB_ICONEXCLAMATION | MB_OK);
+        }
+        ReleaseMutex(g_hInstanceMutex);
+        CloseHandle(g_hInstanceMutex);
+        return 0;
     }
 
     // Load configuration before any logging occurs
@@ -603,6 +621,30 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ++i; // skip the path argument
             } else if (wcscmp(argv[i], L"--no-tray") == 0) {
                 g_trayIconEnabled = false;
+            } else if (wcscmp(argv[i], L"--tray-icon") == 0 && i + 1 < argc) {
+                g_config.settings[L"tray_icon"] = argv[i + 1];
+                g_trayIconEnabled = (wcscmp(argv[i + 1], L"0") != 0);
+                ++i;
+            } else if (wcscmp(argv[i], L"--temp-hotkey-timeout") == 0 && i + 1 < argc) {
+                g_config.settings[L"temp_hotkey_timeout"] = argv[i + 1];
+                g_tempHotKeyTimeout = std::wcstoul(argv[i + 1], nullptr, 10);
+                ++i;
+            } else if (wcscmp(argv[i], L"--log-path") == 0 && i + 1 < argc) {
+                g_config.settings[L"log_path"] = argv[i + 1];
+                ++i;
+            } else if (wcscmp(argv[i], L"--max-log-size-mb") == 0 && i + 1 < argc) {
+                g_config.settings[L"max_log_size_mb"] = argv[i + 1];
+                ++i;
+            } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
+                g_cliMode = true;
+                g_trayIconEnabled = false;
+            } else if (wcscmp(argv[i], L"--verbose") == 0) {
+                g_verboseLogging = true;
+                if (!g_debugEnabled) {
+                    g_debugEnabled = true;
+                    if (SetDebugLoggingEnabled)
+                        SetDebugLoggingEnabled(true);
+                }
             } else if (wcscmp(argv[i], L"--debug") == 0) {
                 if (!g_debugEnabled) {
                     g_debugEnabled = true;
@@ -611,13 +653,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
             } else if (wcscmp(argv[i], L"--version") == 0) {
                 std::wstring version = GetVersionString();
-                if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+                if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
                     FILE* fp = _wfopen(L"CONOUT$", L"w");
                     if (fp) {
                         fwprintf(fp, L"%s\n", version.c_str());
                         fclose(fp);
                     }
-                    FreeConsole();
+                    if (!g_cliMode)
+                        FreeConsole();
                 } else {
                     MessageBox(NULL, version.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
                 }
@@ -629,13 +672,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 return 0;
             } else if (wcscmp(argv[i], L"--help") == 0) {
                 std::wstring usage = GetUsageString();
-                if (AttachConsole(ATTACH_PARENT_PROCESS)) {
+                if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
                     FILE* fp = _wfopen(L"CONOUT$", L"w");
                     if (fp) {
                         fwprintf(fp, L"%s\n", usage.c_str());
                         fclose(fp);
                     }
-                    FreeConsole();
+                    if (!g_cliMode)
+                        FreeConsole();
                 } else {
                     MessageBox(NULL, usage.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
                 }
@@ -647,6 +691,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 return 0;
             }
         }
+        ApplyConfig(NULL);
         LocalFree(argv);
     }
 

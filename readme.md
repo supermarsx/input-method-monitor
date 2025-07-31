@@ -35,11 +35,17 @@ The executable also accepts a few optional flags which override settings in the
 configuration file. Use `--help` to display a summary at runtime:
 
 ```
---config <path>  Load configuration from the specified file
---no-tray    Run without the system tray icon
---debug      Enable debug logging
---version    Print the application version and exit
---help       Show this help text
+--config <path>           Load configuration from the specified file
+--no-tray                 Run without the system tray icon
+--debug                   Enable debug logging
+--verbose                 Increase logging verbosity
+--cli                     Run in CLI mode without GUI/tray icon
+--tray-icon <0|1>         Override tray icon setting
+--temp-hotkey-timeout <ms>  Override temporary hotkey timeout
+--log-path <path>         Override log file location
+--max-log-size-mb <num>   Override maximum log size
+--version                 Print the application version and exit
+--help                    Show this help text
 ```
 
 ## Build

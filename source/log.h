@@ -6,6 +6,7 @@
 #include <condition_variable>
 #include <queue>
 #include <fstream>
+#include <atomic>
 
 /**
  * @brief Threaded log writer used by the application and hook DLL.
@@ -57,3 +58,6 @@ extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message);
  * @param enabled Set to @c true to allow log messages to be recorded.
  */
 extern "C" __declspec(dllexport) void SetDebugLoggingEnabled(bool enabled);
+
+/// Global flag controlling verbose console output.
+extern std::atomic<bool> g_verboseLogging;

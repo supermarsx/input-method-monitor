@@ -8,6 +8,7 @@
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
 extern std::atomic<bool> g_debugEnabled;
+std::atomic<bool> g_verboseLogging{false};
 
 namespace {
 std::wstring GetLogPath() {
@@ -33,6 +34,10 @@ Log g_log;
 
 extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
     g_log.write(message);
+    if (g_verboseLogging) {
+        OutputDebugStringW(message);
+        OutputDebugStringW(L"\n");
+    }
 }
 
 Log::Log() {
