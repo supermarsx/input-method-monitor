@@ -79,42 +79,42 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
                                KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         result = RegSetValueEx(hKey.get(), L"1", 0, REG_SZ,
-                              (const BYTE*)klid.c_str(),
+                              reinterpret_cast<const BYTE*>(klid.c_str()),
                               (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (Preload) to Locale ID: " << localeID << L", KLID: " << klid;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         } else {
             std::wstringstream ss;
             ss << L"Failed to set default input method in registry (Preload). Error code: " << result;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         }
     } else {
         std::wstringstream ss;
         ss << L"Failed to open registry key (Preload). Error code: " << result;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
     }
 
     result = RegOpenKeyEx(HKEY_USERS, L".DEFAULT\\Keyboard Layout\\Preload", 0,
                           KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         result = RegSetValueEx(hKey.get(), L"1", 0, REG_SZ,
-                              (const BYTE*)klid.c_str(),
+                              reinterpret_cast<const BYTE*>(klid.c_str()),
                               (DWORD)((klid.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (DEFAULT Preload) to Locale ID: " << localeID << L", KLID: " << klid;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         } else {
             std::wstringstream ss;
             ss << L"Failed to set default input method in registry (DEFAULT Preload). Error code: " << result;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         }
     } else {
         std::wstringstream ss;
         ss << L"Failed to open registry key (Preload). Error code: " << result;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
     }
 
     // Update Control Panel International User Profile
@@ -124,21 +124,21 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
     if (result == ERROR_SUCCESS) {
         std::wstring value = localeID + L":" + klid;
         result = RegSetValueEx(hKey.get(), L"InputMethodOverride", 0, REG_SZ,
-                               (const BYTE*)value.c_str(),
+                               reinterpret_cast<const BYTE*>(value.c_str()),
                                (DWORD)((value.size() + 1) * sizeof(wchar_t)));
         if (result == ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Set default input method in registry (InputMethodOverride) to " << value;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         } else {
             std::wstringstream ss;
             ss << L"Failed to set default input method in registry (InputMethodOverride). Error code: " << result;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         }
     } else {
         std::wstringstream ss;
         ss << L"Failed to open registry key (User Profile). Error code: " << result;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
     }
 }
 
@@ -205,7 +205,7 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
             std::wstring klid = GetKLID(hkl);
             std::wstringstream ss;
             ss << L"Keyboard layout changed. Locale ID: " << localeID << L", KLID: " << klid;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
 
             if (!g_workerRunning)
                 StartWorkerThread();
@@ -235,7 +235,7 @@ extern "C" __declspec(dllexport) BOOL InstallGlobalHook() {
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to install global hook. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
         return FALSE;
     }
     IncrementRefCount();
@@ -254,7 +254,7 @@ extern "C" __declspec(dllexport) void UninstallGlobalHook() {
             DWORD errorCode = GetLastError();
             std::wstringstream ss;
             ss << L"Failed to uninstall global hook. Error code: 0x" << std::hex << errorCode;
-            WriteLog(ss.str().c_str());
+            WriteLog(ss.str());
         }
         g_hHook = NULL;
     }
@@ -268,7 +268,7 @@ void IncrementRefCount() {
     g_refCount++;
     std::wstringstream ss;
     ss << L"Reference count incremented to " << g_refCount;
-    WriteLog(ss.str().c_str());
+    WriteLog(ss.str());
     ReleaseMutex(g_hMutex);
 }
 
@@ -278,7 +278,7 @@ void DecrementRefCount() {
     g_refCount--;
     std::wstringstream ss;
     ss << L"Reference count decremented to " << g_refCount;
-    WriteLog(ss.str().c_str());
+    WriteLog(ss.str());
     ReleaseMutex(g_hMutex);
 }
 

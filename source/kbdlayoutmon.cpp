@@ -181,7 +181,7 @@ bool IsLanguageHotKeyEnabled() {
 
         std::wstringstream ss;
         ss << L"Language HotKey value: " << value;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
 
         return (result == ERROR_SUCCESS && wcscmp(value, L"3") == 0);
     } else {
@@ -203,7 +203,7 @@ bool IsLayoutHotKeyEnabled() {
 
         std::wstringstream ss;
         ss << L"Layout HotKey value: " << value;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
 
         return (result == ERROR_SUCCESS && wcscmp(value, L"3") == 0);
     } else {
@@ -230,7 +230,7 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
             g_languageHotKeyEnabled = !g_languageHotKeyEnabled;
         }
         RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
-                      (const BYTE*)value,
+                      reinterpret_cast<const BYTE*>(value),
                       (lstrlen(value) + 1) * sizeof(wchar_t));
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
@@ -257,7 +257,7 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
             g_layoutHotKeyEnabled = !g_layoutHotKeyEnabled;
         }
         RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
-                      (const BYTE*)value,
+                      reinterpret_cast<const BYTE*>(value),
                       (lstrlen(value) + 1) * sizeof(wchar_t));
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
@@ -280,9 +280,9 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
                                KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
-        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ, (const BYTE*)L"1",
+        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ, reinterpret_cast<const BYTE*>(L"1"),
                       (lstrlen(L"1") + 1) * sizeof(wchar_t));
-        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ, (const BYTE*)L"2",
+        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ, reinterpret_cast<const BYTE*>(L"2"),
                       (lstrlen(L"2") + 1) * sizeof(wchar_t));
         WriteLog(L"Temporarily enabled hotkeys.");
 
@@ -717,7 +717,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to register window class. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
@@ -743,7 +743,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to create message-only window. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
@@ -763,7 +763,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to load kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
@@ -788,7 +788,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str().c_str());
+        WriteLog(ss.str());
         FreeLibrary(g_hDll);
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
