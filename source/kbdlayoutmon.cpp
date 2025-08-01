@@ -13,6 +13,7 @@
 #include "constants.h"
 #include "log.h"
 #include "winreg_handle.h"
+#include "utils.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
@@ -144,9 +145,7 @@ void AddToStartup() {
     if (result == ERROR_SUCCESS) {
         wchar_t filePath[MAX_PATH];
         GetModuleFileNameW(NULL, filePath, MAX_PATH);
-        std::wstring quotedPath = L"\"";
-        quotedPath += filePath;
-        quotedPath += L"\"";
+        std::wstring quotedPath = QuotePath(filePath);
         RegSetValueExW(hKey.get(), L"kbdlayoutmon", 0, REG_SZ,
                        reinterpret_cast<const BYTE*>(quotedPath.c_str()),
                        (quotedPath.size() + 1) * sizeof(wchar_t));

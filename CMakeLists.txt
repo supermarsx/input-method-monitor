@@ -57,8 +57,8 @@ target_link_libraries(kbdlayoutmonhook
 
 # Unit tests
 find_package(Catch2 3 REQUIRED)
-add_executable(run_tests tests/test_configuration.cpp)
-target_include_directories(run_tests PRIVATE tests)
+add_executable(run_tests tests/test_configuration.cpp tests/test_utils.cpp)
+target_include_directories(run_tests PRIVATE tests source)
 target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain)
 
 enable_testing()
