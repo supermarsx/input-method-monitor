@@ -1,7 +1,20 @@
 #include "log.h"
-#include <windows.h>
+#ifdef _WIN32
+#  include <windows.h>
+#  include <shlwapi.h>
+#else
+#  include <filesystem>
+#  include <chrono>
+#  include <ctime>
+#  include <cwchar>
+#  define MAX_PATH 260
+#endif
+#ifndef _WIN32
+using HINSTANCE = void*;
+inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); }
+#endif
 #include <fstream>
-#include <shlwapi.h>
+#include <iostream>
 #include <utility>
 #include <atomic>
 #include "configuration.h"
@@ -18,33 +31,47 @@ std::wstring GetLogPath() {
     }
 
     wchar_t logPath[MAX_PATH] = {0};
+#ifdef _WIN32
     if (g_hInst) {
-        GetModuleFileName(g_hInst, logPath, MAX_PATH);
-        PathRemoveFileSpec(logPath);
-        PathCombine(logPath, logPath, L"kbdlayoutmon.log");
+        GetModuleFileNameW(g_hInst, logPath, MAX_PATH);
+        PathRemoveFileSpecW(logPath);
+        PathCombineW(logPath, logPath, L"kbdlayoutmon.log");
     } else {
         lstrcpyW(logPath, L"kbdlayoutmon.log");
     }
     return logPath;
+#else
+    (void)g_hInst;
+    lstrcpyW(logPath, L"kbdlayoutmon.log");
+    return logPath;
+#endif
 }
 }
 
 /// Global log instance used by the executable and DLL.
 Log g_log;
 
-extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message) {
+extern "C" void WriteLog(const wchar_t* message) {
     g_log.write(message);
     if (g_verboseLogging) {
+#ifdef _WIN32
         OutputDebugStringW(message);
         OutputDebugStringW(L"\n");
+#else
+        std::wcerr << message << std::endl;
+#endif
     }
 }
 
 Log::Log() {
     m_running = true;
+#ifdef _WIN32
     m_stopEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
     m_thread = std::thread(&Log::process, this);
     m_pipeThread = std::thread(&Log::pipeListener, this);
+#else
+    m_thread = std::thread(&Log::process, this);
+#endif
 }
 
 Log::~Log() {
@@ -56,17 +83,21 @@ void Log::shutdown() {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_running = false;
     }
+#ifdef _WIN32
     if (m_stopEvent)
         SetEvent(m_stopEvent);
+#endif
     m_cv.notify_all();
     if (m_thread.joinable())
         m_thread.join();
+#ifdef _WIN32
     if (m_pipeThread.joinable())
         m_pipeThread.join();
     if (m_stopEvent) {
         CloseHandle(m_stopEvent);
         m_stopEvent = NULL;
     }
+#endif
 }
 
 void Log::write(const std::wstring& message) {
@@ -81,9 +112,17 @@ void Log::write(const std::wstring& message) {
 
 void Log::process() {
     std::wstring path = GetLogPath();
+#ifdef _WIN32
     m_file.open(path.c_str(), std::ios::app);
+#else
+    m_file.open(std::filesystem::path(path), std::ios::app);
+#endif
     if (!m_file.is_open()) {
+#ifdef _WIN32
         OutputDebugString(L"Failed to open log file.");
+#else
+        std::wcerr << L"Failed to open log file." << std::endl;
+#endif
     }
     for (;;) {
         std::unique_lock<std::mutex> lock(m_mutex);
@@ -92,6 +131,18 @@ void Log::process() {
             std::wstring msg = std::move(m_queue.front());
             m_queue.pop();
             lock.unlock();
+
+            std::wstring cfgPath = GetLogPath();
+            if (cfgPath != path) {
+                if (m_file.is_open())
+                    m_file.close();
+                path = cfgPath;
+#ifdef _WIN32
+                m_file.open(path.c_str(), std::ios::app);
+#else
+                m_file.open(std::filesystem::path(path), std::ios::app);
+#endif
+            }
 
             if (m_file.is_open()) {
                 // Check log file size
@@ -104,26 +155,60 @@ void Log::process() {
                         maxMb = 10;
                     }
                 }
-                ULONGLONG maxBytes = static_cast<ULONGLONG>(maxMb) * 1024 * 1024ULL;
+                unsigned long long maxBytes = static_cast<unsigned long long>(maxMb) * 1024 * 1024ULL;
 
+#ifdef _WIN32
                 WIN32_FILE_ATTRIBUTE_DATA fad;
                 if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad)) {
-                    ULONGLONG size = (static_cast<ULONGLONG>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+                    unsigned long long size = (static_cast<unsigned long long>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
                     if (size > maxBytes) {
                         m_file.close();
                         std::wstring rotated = path + L".1";
                         MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING);
+#ifdef _WIN32
                         m_file.open(path.c_str(), std::ios::out | std::ios::trunc);
+#else
+                        m_file.open(std::filesystem::path(path), std::ios::out | std::ios::trunc);
+#endif
                     }
                 }
+#else
+                namespace fs = std::filesystem;
+                try {
+                    if (fs::exists(path)) {
+                        auto size = fs::file_size(path);
+                        if (size > maxBytes) {
+                            m_file.close();
+                            fs::rename(path, path + L".1");
+#ifdef _WIN32
+                            m_file.open(path.c_str(), std::ios::out | std::ios::trunc);
+#else
+                            m_file.open(std::filesystem::path(path), std::ios::out | std::ios::trunc);
+#endif
+                        }
+                    }
+                } catch (...) {
+                }
+#endif
 
+                wchar_t ts[32] = {0};
+#ifdef _WIN32
                 SYSTEMTIME st{};
                 GetLocalTime(&st);
-                wchar_t ts[32] = {0};
                 swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+#else
+                std::time_t t = std::time(nullptr);
+                std::tm tm{};
+                localtime_r(&t, &tm);
+                swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+#endif
                 m_file << ts << L" " << msg << std::endl;
             } else {
+#ifdef _WIN32
                 OutputDebugString(L"Failed to write to log file.");
+#else
+                std::wcerr << L"Failed to write to log file." << std::endl;
+#endif
             }
             lock.lock();
         }
@@ -134,6 +219,7 @@ void Log::process() {
         m_file.close();
 }
 
+#ifdef _WIN32
 void Log::pipeListener() {
     const wchar_t* pipeName = L"\\\\.\\pipe\\kbdlayoutmon_log";
     OVERLAPPED ov{};
@@ -184,4 +270,7 @@ void Log::pipeListener() {
 
     CloseHandle(ov.hEvent);
 }
+#else
+void Log::pipeListener() {}
+#endif
 

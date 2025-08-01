@@ -1,11 +1,19 @@
 #include "configuration.h"
+#ifdef _WIN32
 #include <windows.h>
 #include <shlwapi.h>
+#else
+#include <filesystem>
+#include <cwchar>
+#endif
 #include "constants.h"
 #include "log.h"
 #include <fstream>
 #include <algorithm>
 
+#ifndef _WIN32
+using HINSTANCE = void*;
+#endif
 extern HINSTANCE g_hInst; // Provided by the executable
 
 /// Global configuration instance shared across modules.
@@ -20,15 +28,24 @@ void Configuration::load(std::optional<std::wstring> path) {
     } else if (!m_lastPath.empty()) {
         fullPath = m_lastPath;
     } else {
+#ifdef _WIN32
         wchar_t configPath[MAX_PATH];
         GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
         PathRemoveFileSpecW(configPath);
         PathCombineW(configPath, configPath, configFile.c_str());
         fullPath = configPath;
+#else
+        std::filesystem::path cfg = std::filesystem::current_path() / configFile;
+        fullPath = cfg.wstring();
+#endif
         m_lastPath = fullPath;
     }
 
+#ifdef _WIN32
     std::wifstream file(fullPath.c_str());
+#else
+    std::wifstream file{std::filesystem::path(fullPath)};
+#endif
     if (!file.is_open()) {
         std::wstring msg = L"Failed to open configuration file: " + fullPath;
         WriteLog(msg.c_str());
