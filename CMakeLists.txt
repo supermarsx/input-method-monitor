@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
-project(InputMethodMonitor LANGUAGES CXX RC)
+if(WIN32)
+    project(InputMethodMonitor LANGUAGES CXX RC)
+else()
+    project(InputMethodMonitor LANGUAGES CXX)
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,6 +13,7 @@ set(COMMON_SOURCES
 )
 
 # kbdlayoutmon executable
+if(WIN32)
 add_executable(kbdlayoutmon
     source/kbdlayoutmon.cpp
     ${COMMON_SOURCES}
@@ -36,8 +41,10 @@ if(MSVC)
         COMMAND mt.exe -nologo -manifest "${CMAKE_CURRENT_SOURCE_DIR}/manifest.xml" -outputresource:"$<TARGET_FILE:kbdlayoutmon>";1
         COMMENT "Embedding application manifest")
 endif()
+endif()
 
 # kbdlayoutmonhook DLL
+if(WIN32)
 add_library(kbdlayoutmonhook SHARED
     source/kbdlayoutmonhook.cpp
     ${COMMON_SOURCES}
@@ -54,12 +61,19 @@ target_link_libraries(kbdlayoutmonhook
     ole32
     advapi32
 )
+endif()
 
 # Unit tests
 find_package(Catch2 3 REQUIRED)
-add_executable(run_tests tests/test_configuration.cpp)
-target_include_directories(run_tests PRIVATE tests)
-target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain)
+add_executable(run_tests
+    tests/test_configuration.cpp
+    tests/test_log.cpp
+    source/log.cpp
+    source/configuration.cpp
+)
+target_include_directories(run_tests PRIVATE tests source)
+find_package(Threads REQUIRED)
+target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain Threads::Threads)
 
 enable_testing()
 add_test(NAME run_tests COMMAND run_tests)
