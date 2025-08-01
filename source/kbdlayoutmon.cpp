@@ -57,7 +57,6 @@ SetDebugLoggingEnabledFunc SetDebugLoggingEnabled = NULL;
 InitHookModuleFunc InitHookModule = NULL;
 CleanupHookModuleFunc CleanupHookModule = NULL;
 
-std::mutex g_mutex;
 std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug logging
 std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray icon
 bool g_startupEnabled = false; // Global variable to track startup status
