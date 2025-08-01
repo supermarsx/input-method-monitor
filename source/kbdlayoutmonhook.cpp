@@ -17,7 +17,6 @@
 std::atomic<bool> g_debugEnabled{false};
 HINSTANCE g_hInst = NULL;
 HHOOK g_hHook = NULL;
-std::mutex g_mutex;
 
 #pragma data_seg(".shared")
 HKL g_lastHKL = NULL; // Declare g_lastHKL in the shared memory segment

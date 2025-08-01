@@ -65,6 +65,7 @@ endif()
 
 # Unit tests
 find_package(Catch2 3 REQUIRED)
+
 add_executable(run_tests
     tests/test_configuration.cpp
     tests/test_log.cpp
@@ -74,6 +75,9 @@ add_executable(run_tests
 target_include_directories(run_tests PRIVATE tests source)
 find_package(Threads REQUIRED)
 target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain Threads::Threads)
+add_executable(run_tests tests/test_configuration.cpp tests/test_utils.cpp)
+target_include_directories(run_tests PRIVATE tests source)
+target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain)
 
 enable_testing()
 add_test(NAME run_tests COMMAND run_tests)
