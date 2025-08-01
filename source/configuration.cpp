@@ -43,8 +43,8 @@ void Configuration::load(std::optional<std::wstring> path) {
         lines.push_back(line);
     }
 
-    for (const std::wstring& lineRef : lines) {
-        std::wstring currentLine = lineRef;
+    for (const std::wstring& line : lines) {
+        std::wstring currentLine = line;
         size_t start = currentLine.find_first_not_of(L" \t\r\n");
         if (start == std::wstring::npos)
             continue;
