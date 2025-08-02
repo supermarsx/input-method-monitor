@@ -101,7 +101,7 @@ void Log::shutdown() {
 }
 
 void Log::write(const std::wstring& message) {
-    if (!g_debugEnabled)
+    if (!g_debugEnabled.load())
         return;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
