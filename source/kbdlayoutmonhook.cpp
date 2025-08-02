@@ -67,7 +67,7 @@ std::wstring GetLocaleID(HKL hkl) {
 
 // Function to set the default input method in the registry
 void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::wstring& klid) {
-    if (!g_languageHotKeyEnabled && !g_layoutHotKeyEnabled) {
+    if (!g_languageHotKeyEnabled.load() && !g_layoutHotKeyEnabled.load()) {
         WriteLog(L"HotKeys are disabled. Skipping registry update.");
         return;
     }
@@ -178,7 +178,7 @@ extern "C" __declspec(dllexport) BOOL InitHookModule() {
     g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
     g_config.load();
     auto it = g_config.settings.find(L"debug");
-    g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+    g_debugEnabled.store(it != g_config.settings.end() && it->second == L"1");
     StartWorkerThread();
     return TRUE;
 }
@@ -300,7 +300,7 @@ extern "C" __declspec(dllexport) bool GetLayoutHotKeyEnabled() {
  * @param enabled New enabled flag.
  */
 extern "C" __declspec(dllexport) void SetLanguageHotKeyEnabled(bool enabled) {
-    g_languageHotKeyEnabled = enabled;
+    g_languageHotKeyEnabled.store(enabled);
 }
 
 /**
@@ -308,7 +308,7 @@ extern "C" __declspec(dllexport) void SetLanguageHotKeyEnabled(bool enabled) {
  * @param enabled New enabled flag.
  */
 extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
-    g_layoutHotKeyEnabled = enabled;
+    g_layoutHotKeyEnabled.store(enabled);
 }
 
 /**
@@ -316,7 +316,7 @@ extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
  * @param enabled When true, log messages are written.
  */
 extern "C" __declspec(dllexport) void SetDebugLoggingEnabled(bool enabled) {
-    g_debugEnabled = enabled;
+    g_debugEnabled.store(enabled);
 }
 
 /**
@@ -331,7 +331,7 @@ BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
             g_config.load();
             {
                 auto it = g_config.settings.find(L"debug");
-                g_debugEnabled = (it != g_config.settings.end() && it->second == L"1");
+                g_debugEnabled.store(it != g_config.settings.end() && it->second == L"1");
             }
             break;
         case DLL_PROCESS_DETACH:

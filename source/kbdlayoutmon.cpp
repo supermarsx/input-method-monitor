@@ -3,7 +3,6 @@
 #include <string>
 #include <fstream>
 #include <shlwapi.h>
-#include <mutex>
 #include <atomic>
 #include <sstream>
 #include <shellapi.h>
@@ -217,7 +216,7 @@ bool IsLayoutHotKeyEnabled() {
 // Helper function to toggle Language HotKey
 void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
     // Detect current state before toggling
-    g_languageHotKeyEnabled = IsLanguageHotKeyEnabled();
+    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
 
     WinRegHandle hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
@@ -226,10 +225,11 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
         const wchar_t* value;
         if (overrideState) {
             value = state ? L"3" : L"1";
-            g_languageHotKeyEnabled = state;
+            g_languageHotKeyEnabled.store(state);
         } else {
-            value = g_languageHotKeyEnabled ? L"1" : L"3";
-            g_languageHotKeyEnabled = !g_languageHotKeyEnabled;
+            bool cur = g_languageHotKeyEnabled.load();
+            value = cur ? L"1" : L"3";
+            g_languageHotKeyEnabled.store(!cur);
         }
         RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
                       reinterpret_cast<const BYTE*>(value),
@@ -237,14 +237,14 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = fa
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
-        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
+        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
     }
 }
 
 // Helper function to toggle Layout HotKey
 void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
     // Detect current state before toggling
-    g_layoutHotKeyEnabled = IsLayoutHotKeyEnabled();
+    g_layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
 
     WinRegHandle hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
@@ -253,10 +253,11 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
         const wchar_t* value;
         if (overrideState) {
             value = state ? L"3" : L"2";
-            g_layoutHotKeyEnabled = state;
+            g_layoutHotKeyEnabled.store(state);
         } else {
-            value = g_layoutHotKeyEnabled ? L"2" : L"3";
-            g_layoutHotKeyEnabled = !g_layoutHotKeyEnabled;
+            bool cur = g_layoutHotKeyEnabled.load();
+            value = cur ? L"2" : L"3";
+            g_layoutHotKeyEnabled.store(!cur);
         }
         RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
                       reinterpret_cast<const BYTE*>(value),
@@ -264,19 +265,19 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = fals
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory value
-        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
+        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
     }
 }
 
 void TemporarilyEnableHotKeys(HWND hwnd) {
     WriteLog(L"TemporarilyEnableHotKeys called.");
 
-    if (g_tempHotKeysEnabled) {
+    if (g_tempHotKeysEnabled.load()) {
         WriteLog(L"TemporarilyEnableHotKeys already enabled. Skipping.");
         return; // Avoid repeated enabling
     }
 
-    g_tempHotKeysEnabled = true;
+    g_tempHotKeysEnabled.store(true);
 
     WinRegHandle hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
@@ -289,15 +290,15 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         WriteLog(L"Temporarily enabled hotkeys.");
 
         // Update the global status
-        g_languageHotKeyEnabled = true;
-        g_layoutHotKeyEnabled = true;
+        g_languageHotKeyEnabled.store(true);
+        g_layoutHotKeyEnabled.store(true);
 
         // Update tray menu checkmarks
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
         // Update the shared memory values
-        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
-        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
+        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
+        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
 
         // Set a timer to revert changes after configured timeout
         SetTimer(hwnd, 1, g_tempHotKeyTimeout, NULL);
@@ -309,12 +310,12 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
 
 // Function to handle timer events and reset hotkeys
 void OnTimer(HWND hwnd) {
-    if (g_tempHotKeysEnabled) {
+    if (g_tempHotKeysEnabled.load()) {
         ToggleLanguageHotKey(hwnd, true, false);
         ToggleLayoutHotKey(hwnd, true, false);
 
         // Reset the flag
-        g_tempHotKeysEnabled = false;
+        g_tempHotKeysEnabled.store(false);
 
         // Update tray menu checkmarks
         //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
@@ -324,7 +325,7 @@ void OnTimer(HWND hwnd) {
 
 // Function to add the tray icon
 void AddTrayIcon(HWND hwnd) {
-    if (!g_trayIconEnabled) return; // Do not add tray icon if disabled in config
+    if (!g_trayIconEnabled.load()) return; // Do not add tray icon if disabled in config
 
     ZeroMemory(&nid, sizeof(nid));
     nid.cbSize = sizeof(NOTIFYICONDATA);
@@ -339,7 +340,7 @@ void AddTrayIcon(HWND hwnd) {
 
 // Function to remove the tray icon
 void RemoveTrayIcon() {
-    if (g_trayIconEnabled) {
+    if (g_trayIconEnabled.load()) {
         Shell_NotifyIcon(NIM_DELETE, &nid);
     }
 }
@@ -348,25 +349,25 @@ void RemoveTrayIcon() {
 void ApplyConfig(HWND hwnd) {
     auto it = g_config.settings.find(L"debug");
     bool newDebug = (it != g_config.settings.end() && it->second == L"1");
-    if (newDebug != g_debugEnabled) {
-        g_debugEnabled = newDebug;
+    if (newDebug != g_debugEnabled.load()) {
+        g_debugEnabled.store(newDebug);
         if (SetDebugLoggingEnabled)
-            SetDebugLoggingEnabled(g_debugEnabled);
+            SetDebugLoggingEnabled(g_debugEnabled.load());
     }
 
     bool tray = true;
     it = g_config.settings.find(L"tray_icon");
     if (it != g_config.settings.end())
         tray = it->second != L"0";
-    if (tray != g_trayIconEnabled) {
+    if (tray != g_trayIconEnabled.load()) {
         if (tray) {
-            g_trayIconEnabled = true;
+            g_trayIconEnabled.store(true);
             if (hwnd)
                 AddTrayIcon(hwnd);
         } else {
             if (hwnd)
                 RemoveTrayIcon();
-            g_trayIconEnabled = false;
+            g_trayIconEnabled.store(false);
         }
     }
 
@@ -435,7 +436,7 @@ void StopConfigWatcher() {
 
 // Function to handle tray icon menu
 void ShowTrayMenu(HWND hwnd) {
-    if (!g_trayIconEnabled) return; // Do not show tray menu if tray icon is disabled
+    if (!g_trayIconEnabled.load()) return; // Do not show tray menu if tray icon is disabled
 
     POINT pt;
     GetCursorPos(&pt);
@@ -453,9 +454,9 @@ void ShowTrayMenu(HWND hwnd) {
     // Add startup option with checkmark if enabled
     InsertMenu(hMenu, 2, MF_BYPOSITION | MF_STRING | (g_startupEnabled ? MF_CHECKED : 0), ID_TRAY_STARTUP, L"Launch at startup");
     // Add toggle Language HotKey option with checkmark if enabled
-    InsertMenu(hMenu, 3, MF_BYPOSITION | MF_STRING | (g_languageHotKeyEnabled ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LANGUAGE, L"Toggle Language HotKey");
+    InsertMenu(hMenu, 3, MF_BYPOSITION | MF_STRING | (g_languageHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LANGUAGE, L"Toggle Language HotKey");
     // Add toggle Layout HotKey option with checkmark if enabled
-    InsertMenu(hMenu, 4, MF_BYPOSITION | MF_STRING | (g_layoutHotKeyEnabled ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LAYOUT, L"Toggle Layout HotKey");
+    InsertMenu(hMenu, 4, MF_BYPOSITION | MF_STRING | (g_layoutHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LAYOUT, L"Toggle Layout HotKey");
     // Add option to temporarily enable hotkeys
     InsertMenu(hMenu, 5, MF_BYPOSITION | MF_STRING, ID_TRAY_TEMP_ENABLE_HOTKEYS, L"Temporarily Enable HotKeys");
     // Add open log option
@@ -463,7 +464,7 @@ void ShowTrayMenu(HWND hwnd) {
     // Add open config option
     InsertMenu(hMenu, 7, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_CONFIG, L"Open Config File");
     // Add debug toggle option with checkmark if enabled
-    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING | (g_debugEnabled ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
+    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING | (g_debugEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
     // Add separator
     InsertMenu(hMenu, 9, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
     // Add restart option
@@ -538,13 +539,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     break;
                 }
                 case ID_TRAY_TOGGLE_DEBUG:
-                    if (g_debugEnabled) {
+                    if (g_debugEnabled.load()) {
                         WriteLog(L"Debug logging disabled.");
-                        g_debugEnabled = false;
+                        g_debugEnabled.store(false);
                         if (SetDebugLoggingEnabled)
                             SetDebugLoggingEnabled(false);
                     } else {
-                        g_debugEnabled = true;
+                        g_debugEnabled.store(true);
                         if (SetDebugLoggingEnabled)
                             SetDebugLoggingEnabled(true);
                         WriteLog(L"Debug logging enabled.");
@@ -622,10 +623,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (wcscmp(argv[i], L"--config") == 0 && i + 1 < argc) {
                 ++i; // skip the path argument
             } else if (wcscmp(argv[i], L"--no-tray") == 0) {
-                g_trayIconEnabled = false;
+                g_trayIconEnabled.store(false);
             } else if (wcscmp(argv[i], L"--tray-icon") == 0 && i + 1 < argc) {
                 g_config.settings[L"tray_icon"] = argv[i + 1];
-                g_trayIconEnabled = (wcscmp(argv[i + 1], L"0") != 0);
+                g_trayIconEnabled.store(wcscmp(argv[i + 1], L"0") != 0);
                 ++i;
             } else if (wcscmp(argv[i], L"--temp-hotkey-timeout") == 0 && i + 1 < argc) {
                 g_config.settings[L"temp_hotkey_timeout"] = argv[i + 1];
@@ -639,17 +640,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ++i;
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
                 g_cliMode = true;
-                g_trayIconEnabled = false;
+                g_trayIconEnabled.store(false);
             } else if (wcscmp(argv[i], L"--verbose") == 0) {
                 g_verboseLogging = true;
-                if (!g_debugEnabled) {
-                    g_debugEnabled = true;
+                if (!g_debugEnabled.load()) {
+                    g_debugEnabled.store(true);
                     if (SetDebugLoggingEnabled)
                         SetDebugLoggingEnabled(true);
                 }
             } else if (wcscmp(argv[i], L"--debug") == 0) {
-                if (!g_debugEnabled) {
-                    g_debugEnabled = true;
+                if (!g_debugEnabled.load()) {
+                    g_debugEnabled.store(true);
                     if (SetDebugLoggingEnabled)
                         SetDebugLoggingEnabled(true);
                 }
@@ -703,10 +704,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     g_startupEnabled = IsStartupEnabled();
 
     // Check if Language HotKey is enabled
-    g_languageHotKeyEnabled = IsLanguageHotKeyEnabled();
+    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
 
     // Check if Layout HotKey is enabled
-    g_layoutHotKeyEnabled = IsLayoutHotKeyEnabled();
+    g_layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
 
     // Register the window class
     const wchar_t CLASS_NAME[] = L"TrayIconWindowClass";
@@ -813,7 +814,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Propagate current debug logging state to the DLL
-    SetDebugLoggingEnabled(g_debugEnabled);
+    SetDebugLoggingEnabled(g_debugEnabled.load());
 
     if (!InstallGlobalHook()) {
         WriteLog(L"Failed to install global hook.");
@@ -827,8 +828,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Update the shared memory values at startup
-    SetLanguageHotKeyEnabled(g_languageHotKeyEnabled);
-    SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled);
+    SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
+    SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
