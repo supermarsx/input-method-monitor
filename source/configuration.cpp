@@ -10,6 +10,7 @@
 #include "log.h"
 #include <fstream>
 #include <algorithm>
+#include <cwctype>
 
 #ifndef _WIN32
 using HINSTANCE = void*;
@@ -19,47 +20,8 @@ extern HINSTANCE g_hInst; // Provided by the executable
 /// Global configuration instance shared across modules.
 Configuration g_config;
 
-void Configuration::load(std::optional<std::wstring> path) {
-    std::wstring fullPath;
-
-    if (path && !path->empty()) {
-        m_lastPath = *path;
-        fullPath = *path;
-    } else if (!m_lastPath.empty()) {
-        fullPath = m_lastPath;
-    } else {
-#ifdef _WIN32
-        wchar_t configPath[MAX_PATH];
-        GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
-        PathRemoveFileSpecW(configPath);
-        PathCombineW(configPath, configPath, configFile.c_str());
-        fullPath = configPath;
-#else
-        std::filesystem::path cfg = std::filesystem::current_path() / configFile;
-        fullPath = cfg.wstring();
-#endif
-        m_lastPath = fullPath;
-    }
-
-#ifdef _WIN32
-    std::wifstream file(fullPath.c_str());
-#else
-    std::wifstream file{std::filesystem::path(fullPath)};
-#endif
-    if (!file.is_open()) {
-        std::wstring msg = L"Failed to open configuration file: " + fullPath;
-        WriteLog(msg.c_str());
-        return;
-    }
-
-    settings.clear();
-
-    std::vector<std::wstring> lines;
-    std::wstring line;
-    while (std::getline(file, line)) {
-        lines.push_back(line);
-    }
-
+std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wstring>& lines) {
+    std::map<std::wstring, std::wstring> result;
     for (const std::wstring& line : lines) {
         std::wstring currentLine = line;
         size_t start = currentLine.find_first_not_of(L" \t\r\n");
@@ -103,9 +65,9 @@ void Configuration::load(std::optional<std::wstring> path) {
                     throw std::invalid_argument("negative");
                 }
                 unsigned long timeout = std::stoul(value);
-                settings[key] = std::to_wstring(timeout);
+                result[key] = std::to_wstring(timeout);
             } catch (...) {
-                settings[key] = L"10000";
+                result[key] = L"10000";
             }
         } else if (key == L"max_log_size_mb") {
             try {
@@ -113,14 +75,60 @@ void Configuration::load(std::optional<std::wstring> path) {
                     throw std::invalid_argument("negative");
                 }
                 unsigned long size = std::stoul(value);
-                settings[key] = std::to_wstring(size);
+                result[key] = std::to_wstring(size);
             } catch (...) {
-                settings[key] = L"10";
+                result[key] = L"10";
             }
         } else {
-            settings[key] = value;
+            result[key] = value;
         }
     }
+    return result;
+}
+
+std::map<std::wstring, std::wstring> ParseConfigStream(std::wistream& stream) {
+    std::vector<std::wstring> lines;
+    std::wstring line;
+    while (std::getline(stream, line)) {
+        lines.push_back(line);
+    }
+    return ParseConfigLines(lines);
+}
+
+void Configuration::load(std::optional<std::wstring> path) {
+    std::wstring fullPath;
+
+    if (path && !path->empty()) {
+        m_lastPath = *path;
+        fullPath = *path;
+    } else if (!m_lastPath.empty()) {
+        fullPath = m_lastPath;
+    } else {
+#ifdef _WIN32
+        wchar_t configPath[MAX_PATH];
+        GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
+        PathRemoveFileSpecW(configPath);
+        PathCombineW(configPath, configPath, configFile.c_str());
+        fullPath = configPath;
+#else
+        std::filesystem::path cfg = std::filesystem::current_path() / configFile;
+        fullPath = cfg.wstring();
+#endif
+        m_lastPath = fullPath;
+    }
+
+#ifdef _WIN32
+    std::wifstream file(fullPath.c_str());
+#else
+    std::wifstream file{std::filesystem::path(fullPath)};
+#endif
+    if (!file.is_open()) {
+        std::wstring msg = L"Failed to open configuration file: " + fullPath;
+        WriteLog(msg.c_str());
+        return;
+    }
+
+    settings = ParseConfigStream(file);
 }
 
 std::wstring Configuration::getLastPath() const {

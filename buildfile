@@ -18,7 +18,12 @@ lib{kbdlayoutmonhook}: \
   source/configuration.cpp
 
 # Unit tests
-exe{run_tests}: tests/test_configuration.cpp
+exe{run_tests}: \
+  tests/test_configuration.cpp \
+  tests/test_log.cpp \
+  tests/test_utils.cpp \
+  source/log.cpp \
+  source/configuration.cpp
 
 # Register test target
 test{run_tests}
