@@ -804,6 +804,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Initialize the hook module now that it's loaded
     if (!InitHookModule()) {
         WriteLog(L"Failed to initialize hook module.");
+        CleanupHookModule();
         FreeLibrary(g_hDll);
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
@@ -818,6 +819,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     if (!InstallGlobalHook()) {
         WriteLog(L"Failed to install global hook.");
+        CleanupHookModule();
         FreeLibrary(g_hDll);
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex);
