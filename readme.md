@@ -53,13 +53,23 @@ configuration file. Use `--help` to display a summary at runtime:
 ## Build
 
 ### Installing Catch2
-Unit tests depend on [Catch2](https://github.com/catchorg/Catch2). On Debian/Ubuntu install it with:
+Unit tests depend on [Catch2](https://github.com/catchorg/Catch2). Install it before attempting to build or run tests.
+
+On Debian/Ubuntu the packaged version can be installed with:
 
 ```bash
 sudo apt install catch2
 ```
 
-Alternatively build it from source if your distribution does not provide it.
+If your distribution does not provide it, build Catch2 from source following the instructions in its repository.
+
+After installation the tests can be executed with:
+
+```bash
+scripts/run_tests.sh
+```
+
+The script checks for the presence of Catch2 headers and will abort with a helpful error message if they are missing.
 ### Using CMake
 The project can be built with CMake 3.15 or newer. From a *Developer Command Prompt* run:
 
