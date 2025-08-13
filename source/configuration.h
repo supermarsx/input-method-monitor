@@ -23,10 +23,11 @@ public:
      * configuration file next to the executable is used.
      *
      * @param path Optional path to a configuration file.
-     * @return void
+     * @return @c true on success, @c false if the file could not be
+     *         opened or parsed.
      * @sideeffects Updates internal settings and remembers the last path.
      */
-    void load(std::optional<std::wstring> path = std::nullopt);
+    bool load(std::optional<std::wstring> path = std::nullopt);
 
     /**
      * @brief Retrieve the path of the last loaded configuration file.

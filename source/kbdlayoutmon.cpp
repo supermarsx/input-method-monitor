@@ -399,9 +399,12 @@ DWORD WINAPI ConfigWatchThread(LPVOID param) {
     for (;;) {
         DWORD wait = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
         if (wait == WAIT_OBJECT_0) {
-            g_config.load();
-            ApplyConfig(hwnd);
-            WriteLog(L"Configuration reloaded.");
+            if (g_config.load()) {
+                ApplyConfig(hwnd);
+                WriteLog(L"Configuration reloaded.");
+            } else {
+                WriteLog(L"Failed to reload configuration.");
+            }
             FindNextChangeNotification(hChange);
         } else if (wait == WAIT_OBJECT_0 + 1) {
             break;
@@ -614,7 +617,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Load configuration before any logging occurs
-    g_config.load(customConfigPath);
+    if (!g_config.load(customConfigPath)) {
+        WriteLog(L"Using default configuration values.");
+    }
     ApplyConfig(NULL);
 
     // Parse command line options after the config file so they override

@@ -17,6 +17,7 @@ TEST_CASE("Log switches files when path changes", "[log]") {
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_test";
+    fs::remove_all(dir);
     fs::create_directories(dir);
 
     fs::path first = dir / "first.log";
@@ -52,11 +53,12 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rotate_test";
+    fs::remove_all(dir);
     fs::create_directories(dir);
 
     fs::path logPath = dir / "rotate.log";
-    g_config.set(L"log_path", logPath.wstring());
-    g_config.set(L"max_log_size_mb", L"1");
+    g_config.setSetting(L"log_path", logPath.wstring());
+    g_config.setSetting(L"max_log_size_mb", L"1");
     Log log;
 
     // Write a large entry to exceed the configured size (1 MB)

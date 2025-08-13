@@ -176,7 +176,9 @@ void StopWorkerThread() {
  */
 extern "C" __declspec(dllexport) BOOL InitHookModule() {
     g_hMutex.reset(CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex"));
-    g_config.load();
+    if (!g_config.load()) {
+        WriteLog(L"Failed to load configuration.");
+    }
     auto debugVal = g_config.getSetting(L"debug");
     g_debugEnabled.store(debugVal && *debugVal == L"1");
     StartWorkerThread();

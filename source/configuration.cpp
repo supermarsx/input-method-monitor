@@ -95,7 +95,7 @@ std::map<std::wstring, std::wstring> ParseConfigStream(std::wistream& stream) {
     return ParseConfigLines(lines);
 }
 
-void Configuration::load(std::optional<std::wstring> path) {
+bool Configuration::load(std::optional<std::wstring> path) {
     std::lock_guard<std::mutex> lock(m_mutex);
     std::wstring fullPath;
 
@@ -129,10 +129,11 @@ void Configuration::load(std::optional<std::wstring> path) {
     if (!file.is_open()) {
         std::wstring msg = L"Failed to open configuration file: " + fullPath;
         WriteLog(msg.c_str());
-        return;
+        return false;
     }
 
     settings = ParseConfigStream(file);
+    return true;
 }
 
 std::wstring Configuration::getLastPath() const {
