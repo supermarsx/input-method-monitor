@@ -113,6 +113,7 @@ std::wstring GetUsageString() {
         L"  --temp-hotkey-timeout <ms>  Override temporary hotkey timeout\n"
         L"  --log-path <path>          Override log file location\n"
         L"  --max-log-size-mb <num>    Override max log size\n"
+        L"  --max-queue-size <num>     Override log queue length\n"
         L"  --version    Print the application version and exit\n"
         L"  --help       Show this help message and exit";
 }
@@ -635,6 +636,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             } else if (wcscmp(argv[i], L"--max-log-size-mb") == 0 && i + 1 < argc) {
                 g_config.set(L"max_log_size_mb", argv[i + 1]);
                 ++i;
+            } else if (wcscmp(argv[i], L"--max-queue-size") == 0 && i + 1 < argc) {
+                g_config.set(L"max_queue_size", argv[i + 1]);
+                ++i;
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
                 g_cliMode = true;
                 g_trayIconEnabled.store(false);
@@ -692,6 +696,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             }
         }
         ApplyConfig(NULL);
+        if (auto qval = g_config.get(L"max_queue_size")) {
+            try {
+                g_log.setMaxQueueSize(std::stoul(*qval));
+            } catch (...) {
+            }
+        }
         LocalFree(argv);
     }
 

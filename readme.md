@@ -24,6 +24,7 @@ TRAY_ICON=1   # Show the tray icon (0 to run without it)
 TEMP_HOTKEY_TIMEOUT=10000 # Milliseconds for temporary hotkeys to remain enabled
 LOG_PATH=path\to\logfile # Optional custom log file location
 MAX_LOG_SIZE_MB=10 # Rotate log when it exceeds this size in megabytes
+MAX_QUEUE_SIZE=1000 # Maximum number of log messages buffered before dropping oldest
 ```
 
 Lines that begin with `#` or `;` (after trimming whitespace) are treated as comments and ignored.
@@ -46,6 +47,7 @@ configuration file. Use `--help` to display a summary at runtime:
 --temp-hotkey-timeout <ms>  Override temporary hotkey timeout
 --log-path <path>         Override log file location
 --max-log-size-mb <num>   Override maximum log size
+--max-queue-size <num>    Override maximum queued log messages
 --version                 Print the application version and exit
 --help                    Show this help text
 ```

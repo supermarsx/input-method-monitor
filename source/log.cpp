@@ -64,15 +64,24 @@ extern "C" void WriteLog(const wchar_t* message) {
     }
 }
 
-Log::Log() {
+Log::Log(size_t maxQueueSize, bool startThreads) : m_maxQueueSize(maxQueueSize) {
+    if (auto val = g_config.get(L"max_queue_size")) {
+        try {
+            m_maxQueueSize = std::stoul(*val);
+        } catch (...) {
+            // Ignore parse errors and keep provided default
+        }
+    }
     m_running = true;
+    if (startThreads) {
 #ifdef _WIN32
-    m_stopEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
-    m_thread = std::thread(&Log::process, this);
-    m_pipeThread = std::thread(&Log::pipeListener, this);
+        m_stopEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
+        m_thread = std::thread(&Log::process, this);
+        m_pipeThread = std::thread(&Log::pipeListener, this);
 #else
-    m_thread = std::thread(&Log::process, this);
+        m_thread = std::thread(&Log::process, this);
 #endif
+    }
 }
 
 Log::~Log() {
@@ -103,9 +112,32 @@ void Log::write(const std::wstring& message) {
         return;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        if (m_queue.size() >= m_maxQueueSize) {
+            m_queue.pop();
+        }
         m_queue.push(message);
     }
     m_cv.notify_one();
+}
+
+void Log::setMaxQueueSize(size_t maxSize) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_maxQueueSize = maxSize ? maxSize : 1; // avoid zero
+    while (m_queue.size() > m_maxQueueSize) {
+        m_queue.pop();
+    }
+}
+
+size_t Log::queueSize() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return m_queue.size();
+}
+
+std::wstring Log::peekOldest() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_queue.empty())
+        return std::wstring{};
+    return m_queue.front();
 }
 
 void Log::process() {
