@@ -12,6 +12,7 @@
 #include "constants.h"
 #include "log.h"
 #include "winreg_handle.h"
+#include "unique_handle.h"
 #include "utils.h"
 
 // Forward declarations
@@ -67,8 +68,8 @@ DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseco
 bool g_cliMode = false;                     // Suppress GUI/tray behavior
 NOTIFYICONDATA nid;
 HWND g_hwnd = NULL;                // Handle to our message window
-HANDLE g_hConfigThread = NULL;     // Thread monitoring config file
-HANDLE g_hStopConfigEvent = NULL;  // Event to stop config watcher
+UniqueHandle g_hConfigThread;      // Thread monitoring config file
+UniqueHandle g_hStopConfigEvent;   // Event to stop config watcher
 // Retrieve version information from the executable's version resource
 std::wstring GetVersionString() {
     wchar_t path[MAX_PATH] = {0};
@@ -391,11 +392,11 @@ DWORD WINAPI ConfigWatchThread(LPVOID param) {
     }
     PathRemoveFileSpecW(dirPath);
 
-    HANDLE hChange = FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE);
-    if (hChange == INVALID_HANDLE_VALUE)
+    UniqueHandle hChange(FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE));
+    if (!hChange)
         return 0;
 
-    HANDLE handles[2] = { hChange, g_hStopConfigEvent };
+    HANDLE handles[2] = { hChange.get(), g_hStopConfigEvent.get() };
     for (;;) {
         DWORD wait = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
         if (wait == WAIT_OBJECT_0) {
@@ -410,28 +411,24 @@ DWORD WINAPI ConfigWatchThread(LPVOID param) {
         }
     }
 
-    FindCloseChangeNotification(hChange);
+    FindCloseChangeNotification(hChange.release());
     return 0;
 }
 
 void StartConfigWatcher(HWND hwnd) {
-    g_hStopConfigEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
-    g_hConfigThread = CreateThread(NULL, 0, ConfigWatchThread, hwnd, 0, NULL);
+    g_hStopConfigEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
+    g_hConfigThread.reset(CreateThread(NULL, 0, ConfigWatchThread, hwnd, 0, NULL));
 }
 
 void StopConfigWatcher() {
     if (g_hStopConfigEvent) {
-        SetEvent(g_hStopConfigEvent);
+        SetEvent(g_hStopConfigEvent.get());
     }
     if (g_hConfigThread) {
-        WaitForSingleObject(g_hConfigThread, INFINITE);
-        CloseHandle(g_hConfigThread);
-        g_hConfigThread = NULL;
+        WaitForSingleObject(g_hConfigThread.get(), INFINITE);
+        g_hConfigThread.reset();
     }
-    if (g_hStopConfigEvent) {
-        CloseHandle(g_hStopConfigEvent);
-        g_hStopConfigEvent = NULL;
-    }
+    g_hStopConfigEvent.reset();
 }
 
 // Function to handle tray icon menu
