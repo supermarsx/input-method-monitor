@@ -3,8 +3,6 @@
 #include <map>
 #include <string>
 #include <optional>
-#include <vector>
-#include <istream>
 #include <mutex>
 
 /**
@@ -62,8 +60,3 @@ private:
 /// Global configuration instance shared across modules.
 extern Configuration g_config;
 
-/// Parse configuration from individual lines.
-std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wstring>& lines);
-
-/// Parse configuration from a wide character stream.
-std::map<std::wstring, std::wstring> ParseConfigStream(std::wistream& stream);
