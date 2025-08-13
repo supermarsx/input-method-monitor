@@ -18,6 +18,7 @@ if(WIN32)
 add_executable(kbdlayoutmon
     source/kbdlayoutmon.cpp
     ${COMMON_SOURCES}
+    source/config_watcher.cpp
     source/log.cpp
     resources/res-icon.rc
     resources/res-versioninfo.rc

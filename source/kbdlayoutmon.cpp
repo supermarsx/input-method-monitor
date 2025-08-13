@@ -14,12 +14,10 @@
 #include "winreg_handle.h"
 #include "unique_handle.h"
 #include "utils.h"
+#include "config_watcher.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
-DWORD WINAPI ConfigWatchThread(LPVOID param);
-void StartConfigWatcher(HWND hwnd);
-void StopConfigWatcher();
 
 #define TRAY_ICON_ID 1001
 #define WM_TRAYICON (WM_USER + 1)
@@ -68,8 +66,6 @@ DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseco
 bool g_cliMode = false;                     // Suppress GUI/tray behavior
 NOTIFYICONDATA nid;
 HWND g_hwnd = NULL;                // Handle to our message window
-UniqueHandle g_hConfigThread;      // Thread monitoring config file
-UniqueHandle g_hStopConfigEvent;   // Event to stop config watcher
 // Retrieve version information from the executable's version resource
 std::wstring GetVersionString() {
     wchar_t path[MAX_PATH] = {0};
@@ -379,58 +375,6 @@ void ApplyConfig(HWND hwnd) {
     }
 }
 
-// Thread procedure to watch for configuration file changes
-DWORD WINAPI ConfigWatchThread(LPVOID param) {
-    HWND hwnd = (HWND)param;
-    wchar_t dirPath[MAX_PATH];
-    std::wstring cfgPath = g_config.getLastPath();
-    if (cfgPath.empty()) {
-        GetModuleFileNameW(g_hInst, dirPath, MAX_PATH);
-    } else {
-        wcsncpy(dirPath, cfgPath.c_str(), MAX_PATH);
-        dirPath[MAX_PATH - 1] = L'\0';
-    }
-    PathRemoveFileSpecW(dirPath);
-
-    UniqueHandle hChange(FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE));
-    if (!hChange)
-        return 0;
-
-    HANDLE handles[2] = { hChange.get(), g_hStopConfigEvent.get() };
-    for (;;) {
-        DWORD wait = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
-        if (wait == WAIT_OBJECT_0) {
-            g_config.load();
-            ApplyConfig(hwnd);
-            WriteLog(L"Configuration reloaded.");
-            FindNextChangeNotification(hChange);
-        } else if (wait == WAIT_OBJECT_0 + 1) {
-            break;
-        } else {
-            break;
-        }
-    }
-
-    FindCloseChangeNotification(hChange.release());
-    return 0;
-}
-
-void StartConfigWatcher(HWND hwnd) {
-    g_hStopConfigEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
-    g_hConfigThread.reset(CreateThread(NULL, 0, ConfigWatchThread, hwnd, 0, NULL));
-}
-
-void StopConfigWatcher() {
-    if (g_hStopConfigEvent) {
-        SetEvent(g_hStopConfigEvent.get());
-    }
-    if (g_hConfigThread) {
-        WaitForSingleObject(g_hConfigThread.get(), INFINITE);
-        g_hConfigThread.reset();
-    }
-    g_hStopConfigEvent.reset();
-}
-
 // Function to handle tray icon menu
 void ShowTrayMenu(HWND hwnd) {
     if (!g_trayIconEnabled.load()) return; // Do not show tray menu if tray icon is disabled
@@ -722,7 +666,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ReleaseMutex(g_hInstanceMutex);
             CloseHandle(g_hInstanceMutex);
         }
-        StopConfigWatcher();
         return 1;
     }
 
@@ -755,22 +698,24 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Add the tray icon
     AddTrayIcon(hwnd);
-    StartConfigWatcher(hwnd);
 
-    // Load the DLL
-    g_hDll = LoadLibrary(L"kbdlayoutmonhook.dll");
-    if (g_hDll == NULL) {
-        DWORD errorCode = GetLastError();
-        std::wstringstream ss;
-        ss << L"Failed to load kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str());
-        if (g_hInstanceMutex) {
-            ReleaseMutex(g_hInstanceMutex);
-            CloseHandle(g_hInstanceMutex);
+    MSG msg;
+    {
+        ConfigWatcher configWatcher(hwnd);
+
+        // Load the DLL
+        g_hDll = LoadLibrary(L"kbdlayoutmonhook.dll");
+        if (g_hDll == NULL) {
+            DWORD errorCode = GetLastError();
+            std::wstringstream ss;
+            ss << L"Failed to load kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
+            WriteLog(ss.str());
+            if (g_hInstanceMutex) {
+                ReleaseMutex(g_hInstanceMutex);
+                CloseHandle(g_hInstanceMutex);
+            }
+            return 1;
         }
-        StopConfigWatcher();
-        return 1;
-    }
 
     InstallGlobalHook = (InstallGlobalHookFunc)GetProcAddress(g_hDll, "InstallGlobalHook");
     UninstallGlobalHook = (UninstallGlobalHookFunc)GetProcAddress(g_hDll, "UninstallGlobalHook");
@@ -782,61 +727,57 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     InitHookModule = (InitHookModuleFunc)GetProcAddress(g_hDll, "InitHookModule");
     CleanupHookModule = (CleanupHookModuleFunc)GetProcAddress(g_hDll, "CleanupHookModule");
 
-    if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled ||
-        !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabled ||
-        !InitHookModule || !CleanupHookModule) {
-        DWORD errorCode = GetLastError();
-        std::wstringstream ss;
-        ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str());
-        FreeLibrary(g_hDll);
-        if (g_hInstanceMutex) {
-            ReleaseMutex(g_hInstanceMutex);
-            CloseHandle(g_hInstanceMutex);
+        if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled ||
+            !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabled ||
+            !InitHookModule || !CleanupHookModule) {
+            DWORD errorCode = GetLastError();
+            std::wstringstream ss;
+            ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
+            WriteLog(ss.str());
+            FreeLibrary(g_hDll);
+            if (g_hInstanceMutex) {
+                ReleaseMutex(g_hInstanceMutex);
+                CloseHandle(g_hInstanceMutex);
+            }
+            return 1;
         }
-        StopConfigWatcher();
-        return 1;
-    }
 
     // Initialize the hook module now that it's loaded
-    if (!InitHookModule()) {
-        WriteLog(L"Failed to initialize hook module.");
-        CleanupHookModule();
-        FreeLibrary(g_hDll);
-        if (g_hInstanceMutex) {
-            ReleaseMutex(g_hInstanceMutex);
-            CloseHandle(g_hInstanceMutex);
+        if (!InitHookModule()) {
+            WriteLog(L"Failed to initialize hook module.");
+            CleanupHookModule();
+            FreeLibrary(g_hDll);
+            if (g_hInstanceMutex) {
+                ReleaseMutex(g_hInstanceMutex);
+                CloseHandle(g_hInstanceMutex);
+            }
+            return 1;
         }
-        StopConfigWatcher();
-        return 1;
-    }
 
     // Propagate current debug logging state to the DLL
     SetDebugLoggingEnabled(g_debugEnabled.load());
 
-    if (!InstallGlobalHook()) {
-        WriteLog(L"Failed to install global hook.");
-        CleanupHookModule();
-        FreeLibrary(g_hDll);
-        if (g_hInstanceMutex) {
-            ReleaseMutex(g_hInstanceMutex);
-            CloseHandle(g_hInstanceMutex);
+        if (!InstallGlobalHook()) {
+            WriteLog(L"Failed to install global hook.");
+            CleanupHookModule();
+            FreeLibrary(g_hDll);
+            if (g_hInstanceMutex) {
+                ReleaseMutex(g_hInstanceMutex);
+                CloseHandle(g_hInstanceMutex);
+            }
+            return 1;
         }
-        StopConfigWatcher();
-        return 1;
-    }
 
     // Update the shared memory values at startup
     SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
     SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
 
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+        while (GetMessage(&msg, NULL, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
     }
 
-    StopConfigWatcher();
     UninstallGlobalHook();
     CleanupHookModule();
     FreeLibrary(g_hDll);
