@@ -20,17 +20,40 @@ using HANDLE = void*;
  */
 class Log {
 public:
-    /// Construct the logging subsystem and start worker threads.
-    Log();
+    /**
+     * @brief Construct the logging subsystem.
+     *
+     * @param maxQueueSize Maximum number of messages that may be queued
+     *        before the oldest entry is discarded. Defaults to 1000
+     *        messages.
+     * @param startThreads Whether worker threads should be started
+     *        immediately. Tests can disable this to inspect the queue
+     *        without asynchronous processing.
+     */
+    Log(size_t maxQueueSize = 1000, bool startThreads = true);
     /// Ensure worker threads are stopped and the log file closed.
     ~Log();
 
     /**
      * @brief Queue a message for asynchronous logging.
+     *
+     * When the queue already contains the configured maximum number of
+     * entries, the oldest message is dropped to make room for the new
+     * one.
+     *
      * @param message Text to append to the log file.
      * @sideeffects Signals the worker thread to write the entry.
      */
     void write(const std::wstring& message);
+
+    /// Adjust the maximum number of queued messages.
+    void setMaxQueueSize(size_t maxSize);
+
+    /// Obtain the number of messages currently queued (primarily for tests).
+    size_t queueSize() const;
+
+    /// Peek at the oldest queued message (primarily for tests).
+    std::wstring peekOldest() const;
 
     /// Flush queued messages and terminate the worker threads.
     void shutdown();
@@ -46,11 +69,12 @@ private:
     std::thread m_pipeThread; ///< Named pipe listener thread.
     HandleGuard m_stopEvent;  ///< Event to wake threads for shutdown.
 #endif
-    std::mutex m_mutex;
+    mutable std::mutex m_mutex;
     std::condition_variable m_cv;
     std::queue<std::wstring> m_queue;
     std::wofstream m_file;
     bool m_running = false;
+    size_t m_maxQueueSize = 1000;
 };
 
 /// Global log instance used by all modules.
