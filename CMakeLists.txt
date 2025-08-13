@@ -10,6 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(COMMON_SOURCES
     source/configuration.cpp
+    source/config_parser.cpp
 )
 
 # kbdlayoutmon executable
@@ -72,6 +73,7 @@ add_executable(run_tests
     tests/test_utils.cpp
     source/log.cpp
     source/configuration.cpp
+    source/config_parser.cpp
 )
 
 target_include_directories(run_tests PRIVATE tests source)
