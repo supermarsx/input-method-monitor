@@ -2,6 +2,7 @@
 #ifdef _WIN32
 #  include <windows.h>
 #  include <shlwapi.h>
+#  include "handle_guard.h"
 #else
 #  include <filesystem>
 #  include <chrono>
@@ -66,7 +67,7 @@ extern "C" void WriteLog(const wchar_t* message) {
 Log::Log() {
     m_running = true;
 #ifdef _WIN32
-    m_stopEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+    m_stopEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
     m_thread = std::thread(&Log::process, this);
     m_pipeThread = std::thread(&Log::pipeListener, this);
 #else
@@ -85,7 +86,7 @@ void Log::shutdown() {
     }
 #ifdef _WIN32
     if (m_stopEvent)
-        SetEvent(m_stopEvent);
+        SetEvent(m_stopEvent.get());
 #endif
     m_cv.notify_all();
     if (m_thread.joinable())
@@ -93,10 +94,7 @@ void Log::shutdown() {
 #ifdef _WIN32
     if (m_pipeThread.joinable())
         m_pipeThread.join();
-    if (m_stopEvent) {
-        CloseHandle(m_stopEvent);
-        m_stopEvent = NULL;
-    }
+    m_stopEvent.reset();
 #endif
 }
 
@@ -223,52 +221,48 @@ void Log::process() {
 void Log::pipeListener() {
     const wchar_t* pipeName = L"\\\\.\\pipe\\kbdlayoutmon_log";
     OVERLAPPED ov{};
-    ov.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
+    HandleGuard event(CreateEventW(NULL, TRUE, FALSE, NULL));
+    ov.hEvent = event.get();
     if (!ov.hEvent)
         return;
 
     while (m_running) {
-        HANDLE hPipe = CreateNamedPipeW(pipeName,
-                                       PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
-                                       PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                                       PIPE_UNLIMITED_INSTANCES,
-                                       0, 0, 0, NULL);
-        if (hPipe == INVALID_HANDLE_VALUE) {
+        HandleGuard pipe(CreateNamedPipeW(pipeName,
+                                         PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                                         PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                                         PIPE_UNLIMITED_INSTANCES,
+                                         0, 0, 0, NULL));
+        if (pipe.get() == INVALID_HANDLE_VALUE) {
             Sleep(1000);
             continue;
         }
 
-        ResetEvent(ov.hEvent);
-        BOOL connected = ConnectNamedPipe(hPipe, &ov);
+        ResetEvent(event.get());
+        BOOL connected = ConnectNamedPipe(pipe.get(), &ov);
         DWORD err = GetLastError();
         if (!connected) {
             if (err == ERROR_PIPE_CONNECTED) {
-                SetEvent(ov.hEvent);
+                SetEvent(event.get());
             } else if (err != ERROR_IO_PENDING) {
-                CloseHandle(hPipe);
                 continue;
             }
         }
 
-        HANDLE events[2] = { ov.hEvent, m_stopEvent };
+        HANDLE events[2] = { ov.hEvent, m_stopEvent.get() };
         DWORD wait = WaitForMultipleObjects(2, events, FALSE, INFINITE);
         if (wait == WAIT_OBJECT_0 + 1) {
-            CloseHandle(hPipe);
             break;
         } else if (wait == WAIT_OBJECT_0) {
             wchar_t buffer[1024];
             DWORD bytesRead = 0;
-            while (ReadFile(hPipe, buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL) && bytesRead > 0) {
+            while (ReadFile(pipe.get(), buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL) && bytesRead > 0) {
                 buffer[bytesRead / sizeof(wchar_t)] = L'\0';
                 write(buffer);
             }
         }
 
-        DisconnectNamedPipe(hPipe);
-        CloseHandle(hPipe);
+        DisconnectNamedPipe(pipe.get());
     }
-
-    CloseHandle(ov.hEvent);
 }
 #else
 void Log::pipeListener() {}

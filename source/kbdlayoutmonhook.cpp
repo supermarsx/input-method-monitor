@@ -13,6 +13,7 @@
 #include <queue>
 #include "configuration.h"
 #include "winreg_handle.h"
+#include "handle_guard.h"
 
 std::atomic<bool> g_debugEnabled{false};
 HINSTANCE g_hInst = NULL;
@@ -26,7 +27,7 @@ std::atomic<bool> g_layoutHotKeyEnabled{false}; // Shared variable for Layout Ho
 #pragma data_seg()
 #pragma comment(linker, "/SECTION:.shared,RWS")
 
-HANDLE g_hMutex = NULL;
+HandleGuard g_hMutex;
 
 std::thread g_workerThread;
 std::mutex g_queueMutex;
@@ -39,11 +40,10 @@ void DecrementRefCount();
 
 // Helper function to write to log file via named pipe
 void WriteLog(const std::wstring& message) {
-    HANDLE pipe = CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (pipe != INVALID_HANDLE_VALUE) {
+    HandleGuard pipe(CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+    if (pipe.get() != INVALID_HANDLE_VALUE) {
         DWORD bytesWritten = 0;
-        WriteFile(pipe, message.c_str(), (DWORD)((message.size() + 1) * sizeof(wchar_t)), &bytesWritten, NULL);
-        CloseHandle(pipe);
+        WriteFile(pipe.get(), message.c_str(), (DWORD)((message.size() + 1) * sizeof(wchar_t)), &bytesWritten, NULL);
     }
 }
 
@@ -175,7 +175,7 @@ void StopWorkerThread() {
  * @return TRUE on success.
  */
 extern "C" __declspec(dllexport) BOOL InitHookModule() {
-    g_hMutex = CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex");
+    g_hMutex.reset(CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex"));
     g_config.load();
     auto it = g_config.settings.find(L"debug");
     g_debugEnabled.store(it != g_config.settings.end() && it->second == L"1");
@@ -188,10 +188,7 @@ extern "C" __declspec(dllexport) BOOL InitHookModule() {
  */
 extern "C" __declspec(dllexport) void CleanupHookModule() {
     StopWorkerThread();
-    if (g_hMutex) {
-        CloseHandle(g_hMutex);
-        g_hMutex = NULL;
-    }
+    g_hMutex.reset();
 }
 
 // Hook procedure to monitor system-wide messages
@@ -263,22 +260,22 @@ extern "C" __declspec(dllexport) void UninstallGlobalHook() {
 
 // Increment reference count
 void IncrementRefCount() {
-    WaitForSingleObject(g_hMutex, INFINITE);
+    WaitForSingleObject(g_hMutex.get(), INFINITE);
     g_refCount++;
     std::wstringstream ss;
     ss << L"Reference count incremented to " << g_refCount;
     WriteLog(ss.str());
-    ReleaseMutex(g_hMutex);
+    ReleaseMutex(g_hMutex.get());
 }
 
 // Decrement reference count and check if cleanup is needed
 void DecrementRefCount() {
-    WaitForSingleObject(g_hMutex, INFINITE);
+    WaitForSingleObject(g_hMutex.get(), INFINITE);
     g_refCount--;
     std::wstringstream ss;
     ss << L"Reference count decremented to " << g_refCount;
     WriteLog(ss.str());
-    ReleaseMutex(g_hMutex);
+    ReleaseMutex(g_hMutex.get());
 }
 
 /**
