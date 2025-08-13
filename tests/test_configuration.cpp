@@ -5,7 +5,6 @@
 #include <fstream>
 #include <filesystem>
 
-extern "C" void WriteLog(const wchar_t*) {}
 
 TEST_CASE("Valid entries are parsed", "[config]") {
     std::vector<std::wstring> lines = {
