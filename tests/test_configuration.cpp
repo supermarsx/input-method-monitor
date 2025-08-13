@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "../source/configuration.h"
+#include "../source/config_parser.h"
 #include <string>
 #include <vector>
 #include <fstream>

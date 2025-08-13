@@ -7,6 +7,7 @@ cxx.std = 17
 exe{kbdlayoutmon}: \
   source/kbdlayoutmon.cpp \
   source/configuration.cpp \
+  source/config_parser.cpp \
   source/log.cpp \
   resources/res-icon.rc \
   resources/res-versioninfo.rc \
@@ -15,7 +16,8 @@ exe{kbdlayoutmon}: \
 # Build the hook DLL
 lib{kbdlayoutmonhook}: \
   source/kbdlayoutmonhook.cpp \
-  source/configuration.cpp
+  source/configuration.cpp \
+  source/config_parser.cpp
 
 # Unit tests
 exe{run_tests}: \
@@ -23,7 +25,8 @@ exe{run_tests}: \
   tests/test_log.cpp \
   tests/test_utils.cpp \
   source/log.cpp \
-  source/configuration.cpp
+  source/configuration.cpp \
+  source/config_parser.cpp
 
 # Register test target
 test{run_tests}
