@@ -39,14 +39,20 @@ public:
      * @param key Lower-cased configuration key to look up.
      * @return Optional containing the value if the key exists.
      */
-    std::optional<std::wstring> getSetting(const std::wstring& key) const;
+    std::optional<std::wstring> get(const std::wstring& key) const;
 
     /**
      * @brief Set the value for @p key.
      * @param key Lower-cased configuration key.
      * @param value Value to store.
      */
-    void setSetting(const std::wstring& key, const std::wstring& value);
+    void set(const std::wstring& key, const std::wstring& value);
+
+    /**
+     * @brief Obtain a snapshot of all configuration settings.
+     * @return Copy of the internal settings map.
+     */
+    std::map<std::wstring, std::wstring> snapshot() const;
 
 private:
     /// Map containing lower-cased keys from the configuration file.
