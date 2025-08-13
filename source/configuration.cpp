@@ -64,7 +64,7 @@ std::wstring Configuration::getLastPath() const {
     return m_lastPath;
 }
 
-std::optional<std::wstring> Configuration::getSetting(const std::wstring& key) const {
+std::optional<std::wstring> Configuration::get(const std::wstring& key) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = settings.find(key);
     if (it != settings.end())
@@ -72,7 +72,12 @@ std::optional<std::wstring> Configuration::getSetting(const std::wstring& key) c
     return std::nullopt;
 }
 
-void Configuration::setSetting(const std::wstring& key, const std::wstring& value) {
+void Configuration::set(const std::wstring& key, const std::wstring& value) {
     std::lock_guard<std::mutex> lock(m_mutex);
     settings[key] = value;
+}
+
+std::map<std::wstring, std::wstring> Configuration::snapshot() const {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return settings;
 }

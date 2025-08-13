@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 
+
 TEST_CASE("Valid entries are parsed", "[config]") {
     std::vector<std::wstring> lines = {
         L"DEBUG=1",
