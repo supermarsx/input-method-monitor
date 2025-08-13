@@ -96,20 +96,15 @@ std::map<std::wstring, std::wstring> ParseConfigStream(std::wistream& stream) {
 }
 
 void Configuration::load(std::optional<std::wstring> path) {
+    std::lock_guard<std::mutex> lock(m_mutex);
     std::wstring fullPath;
 
     if (path && !path->empty()) {
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            m_lastPath = *path;
-        }
+        m_lastPath = *path;
         fullPath = *path;
     } else {
-        {
-            std::lock_guard<std::mutex> lock(m_mutex);
-            if (!m_lastPath.empty()) {
-                fullPath = m_lastPath;
-            }
+        if (!m_lastPath.empty()) {
+            fullPath = m_lastPath;
         }
         if (fullPath.empty()) {
 #ifdef _WIN32
@@ -122,10 +117,7 @@ void Configuration::load(std::optional<std::wstring> path) {
         std::filesystem::path cfg = std::filesystem::current_path() / configFile;
         fullPath = cfg.wstring();
 #endif
-            {
-                std::lock_guard<std::mutex> lock(m_mutex);
-                m_lastPath = fullPath;
-            }
+            m_lastPath = fullPath;
         }
     }
 
@@ -140,11 +132,7 @@ void Configuration::load(std::optional<std::wstring> path) {
         return;
     }
 
-    auto parsed = ParseConfigStream(file);
-    {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        settings = std::move(parsed);
-    }
+    settings = ParseConfigStream(file);
 }
 
 std::wstring Configuration::getLastPath() const {
@@ -152,7 +140,7 @@ std::wstring Configuration::getLastPath() const {
     return m_lastPath;
 }
 
-std::optional<std::wstring> Configuration::get(const std::wstring& key) const {
+std::optional<std::wstring> Configuration::getSetting(const std::wstring& key) const {
     std::lock_guard<std::mutex> lock(m_mutex);
     auto it = settings.find(key);
     if (it != settings.end())
@@ -160,7 +148,7 @@ std::optional<std::wstring> Configuration::get(const std::wstring& key) const {
     return std::nullopt;
 }
 
-void Configuration::set(const std::wstring& key, const std::wstring& value) {
+void Configuration::setSetting(const std::wstring& key, const std::wstring& value) {
     std::lock_guard<std::mutex> lock(m_mutex);
     settings[key] = value;
 }

@@ -7,5 +7,5 @@ if ! echo '#include <catch2/catch_test_macros.hpp>' | g++ -std=c++17 -x c++ - -f
     exit 1
 fi
 
-g++ -std=c++17 tests/test_configuration.cpp -o tests/run_tests -lCatch2Main -lCatch2
+g++ -std=c++17 tests/test_configuration.cpp source/configuration.cpp -o tests/run_tests -lCatch2Main -lCatch2
 ./tests/run_tests
