@@ -25,9 +25,9 @@ std::atomic<bool> g_verboseLogging{false};
 
 namespace {
 std::wstring GetLogPath() {
-    auto it = g_config.settings.find(L"log_path");
-    if (it != g_config.settings.end() && !it->second.empty()) {
-        return it->second;
+    auto val = g_config.get(L"log_path");
+    if (val && !val->empty()) {
+        return *val;
     }
 
     wchar_t logPath[MAX_PATH] = {0};
@@ -147,10 +147,10 @@ void Log::process() {
             if (m_file.is_open()) {
                 // Check log file size
                 size_t maxMb = 10;
-                auto it = g_config.settings.find(L"max_log_size_mb");
-                if (it != g_config.settings.end()) {
+                auto val = g_config.get(L"max_log_size_mb");
+                if (val) {
                     try {
-                        maxMb = std::stoul(it->second);
+                        maxMb = std::stoul(*val);
                     } catch (...) {
                         maxMb = 10;
                     }

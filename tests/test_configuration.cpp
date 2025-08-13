@@ -1,9 +1,11 @@
 #include <catch2/catch_test_macros.hpp>
-#include "configuration.h"
+#include "../source/configuration.h"
 #include <string>
 #include <vector>
 #include <fstream>
 #include <filesystem>
+
+extern "C" void WriteLog(const wchar_t*) {}
 
 TEST_CASE("Valid entries are parsed", "[config]") {
     std::vector<std::wstring> lines = {

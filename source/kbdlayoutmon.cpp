@@ -347,8 +347,8 @@ void RemoveTrayIcon() {
 
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
-    auto it = g_config.settings.find(L"debug");
-    bool newDebug = (it != g_config.settings.end() && it->second == L"1");
+    auto debugVal = g_config.get(L"debug");
+    bool newDebug = (debugVal && *debugVal == L"1");
     if (newDebug != g_debugEnabled.load()) {
         g_debugEnabled.store(newDebug);
         if (SetDebugLoggingEnabled)
@@ -356,9 +356,9 @@ void ApplyConfig(HWND hwnd) {
     }
 
     bool tray = true;
-    it = g_config.settings.find(L"tray_icon");
-    if (it != g_config.settings.end())
-        tray = it->second != L"0";
+    auto trayVal = g_config.get(L"tray_icon");
+    if (trayVal)
+        tray = *trayVal != L"0";
     if (tray != g_trayIconEnabled.load()) {
         if (tray) {
             g_trayIconEnabled.store(true);
@@ -371,10 +371,10 @@ void ApplyConfig(HWND hwnd) {
         }
     }
 
-    it = g_config.settings.find(L"temp_hotkey_timeout");
-    if (it != g_config.settings.end()) {
+    auto timeoutVal = g_config.get(L"temp_hotkey_timeout");
+    if (timeoutVal) {
         g_tempHotKeyTimeout =
-            std::wcstoul(it->second.c_str(), nullptr, 10);
+            std::wcstoul(timeoutVal->c_str(), nullptr, 10);
     }
 }
 
@@ -512,9 +512,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 case ID_TRAY_OPEN_LOG:
                 {
                     wchar_t logPath[MAX_PATH] = {0};
-                    auto it = g_config.settings.find(L"log_path");
-                    if (it != g_config.settings.end() && !it->second.empty()) {
-                        lstrcpynW(logPath, it->second.c_str(), MAX_PATH);
+                    auto val = g_config.get(L"log_path");
+                    if (val && !val->empty()) {
+                        lstrcpynW(logPath, val->c_str(), MAX_PATH);
                     } else if (g_hInst) {
                         GetModuleFileName(g_hInst, logPath, MAX_PATH);
                         PathRemoveFileSpec(logPath);
@@ -625,18 +625,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             } else if (wcscmp(argv[i], L"--no-tray") == 0) {
                 g_trayIconEnabled.store(false);
             } else if (wcscmp(argv[i], L"--tray-icon") == 0 && i + 1 < argc) {
-                g_config.settings[L"tray_icon"] = argv[i + 1];
+                g_config.set(L"tray_icon", argv[i + 1]);
                 g_trayIconEnabled.store(wcscmp(argv[i + 1], L"0") != 0);
                 ++i;
             } else if (wcscmp(argv[i], L"--temp-hotkey-timeout") == 0 && i + 1 < argc) {
-                g_config.settings[L"temp_hotkey_timeout"] = argv[i + 1];
+                g_config.set(L"temp_hotkey_timeout", argv[i + 1]);
                 g_tempHotKeyTimeout = std::wcstoul(argv[i + 1], nullptr, 10);
                 ++i;
             } else if (wcscmp(argv[i], L"--log-path") == 0 && i + 1 < argc) {
-                g_config.settings[L"log_path"] = argv[i + 1];
+                g_config.set(L"log_path", argv[i + 1]);
                 ++i;
             } else if (wcscmp(argv[i], L"--max-log-size-mb") == 0 && i + 1 < argc) {
-                g_config.settings[L"max_log_size_mb"] = argv[i + 1];
+                g_config.set(L"max_log_size_mb", argv[i + 1]);
                 ++i;
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
                 g_cliMode = true;
