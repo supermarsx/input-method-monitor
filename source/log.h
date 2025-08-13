@@ -10,6 +10,7 @@
 
 #ifdef _WIN32
 #  include <windows.h>
+#  include "handle_guard.h"
 #else
 using HANDLE = void*;
 #endif
@@ -42,8 +43,8 @@ private:
 
     std::thread m_thread;      ///< Log writer thread.
 #ifdef _WIN32
-    std::thread m_pipeThread;  ///< Named pipe listener thread.
-    HANDLE m_stopEvent = NULL; ///< Event to wake threads for shutdown.
+    std::thread m_pipeThread; ///< Named pipe listener thread.
+    HandleGuard m_stopEvent;  ///< Event to wake threads for shutdown.
 #endif
     std::mutex m_mutex;
     std::condition_variable m_cv;
