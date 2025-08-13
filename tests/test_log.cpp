@@ -22,13 +22,13 @@ TEST_CASE("Log switches files when path changes", "[log]") {
     fs::path first = dir / "first.log";
     fs::path second = dir / "second.log";
 
-    g_config.set(L"log_path", first.wstring());
+    g_config.setSetting(L"log_path", first.wstring());
     Log log;
 
     log.write(L"one");
     std::this_thread::sleep_for(200ms);
 
-    g_config.set(L"log_path", second.wstring());
+    g_config.setSetting(L"log_path", second.wstring());
     log.write(L"two");
     std::this_thread::sleep_for(200ms);
 
