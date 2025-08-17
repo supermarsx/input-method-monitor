@@ -28,6 +28,8 @@ std::atomic<bool> g_layoutHotKeyEnabled{false}; // Shared variable for Layout Ho
 #pragma comment(linker, "/SECTION:.shared,RWS")
 
 HandleGuard g_hMutex;
+HandleGuard g_logPipe;
+std::mutex g_pipeMutex;
 
 std::thread g_workerThread;
 std::mutex g_queueMutex;
@@ -38,12 +40,20 @@ bool g_workerRunning = false;
 void IncrementRefCount();
 void DecrementRefCount();
 
-// Helper function to write to log file via named pipe
+// Helper function to write to log file via named pipe. Reuses a persistent
+// connection and attempts to reconnect on failure.
 void WriteLog(const std::wstring& message) {
-    HandleGuard pipe(CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
-    if (pipe.get() != INVALID_HANDLE_VALUE) {
-        DWORD bytesWritten = 0;
-        WriteFile(pipe.get(), message.c_str(), (DWORD)((message.size() + 1) * sizeof(wchar_t)), &bytesWritten, NULL);
+    std::lock_guard<std::mutex> lock(g_pipeMutex);
+    if (!g_logPipe) {
+        g_logPipe.reset(CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+        if (!g_logPipe)
+            return;
+    }
+    DWORD bytesWritten = 0;
+    if (!WriteFile(g_logPipe.get(), message.c_str(),
+                   (DWORD)((message.size() + 1) * sizeof(wchar_t)),
+                   &bytesWritten, NULL)) {
+        g_logPipe.reset();
     }
 }
 
@@ -175,6 +185,10 @@ void StopWorkerThread() {
  * @return TRUE on success.
  */
 extern "C" __declspec(dllexport) BOOL InitHookModule() {
+    {
+        std::lock_guard<std::mutex> lock(g_pipeMutex);
+        g_logPipe.reset(CreateFileW(L"\\\\.\\pipe\\kbdlayoutmon_log", GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
+    }
     g_hMutex.reset(CreateMutex(NULL, FALSE, L"Global\\KbdHookMutex"));
     g_config.load();
     auto debugVal = g_config.get(L"debug");
@@ -188,6 +202,8 @@ extern "C" __declspec(dllexport) BOOL InitHookModule() {
  */
 extern "C" __declspec(dllexport) void CleanupHookModule() {
     StopWorkerThread();
+    std::lock_guard<std::mutex> lock(g_pipeMutex);
+    g_logPipe.reset();
     g_hMutex.reset();
 }
 
