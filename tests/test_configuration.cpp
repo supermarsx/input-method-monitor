@@ -1,9 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 #include "../source/config_parser.h"
+#include "../source/configuration.h"
 #include <string>
 #include <vector>
 #include <fstream>
 #include <filesystem>
+#include <thread>
+#include <optional>
 
 
 TEST_CASE("Valid entries are parsed", "[config]") {
@@ -125,4 +128,63 @@ TEST_CASE("Reload custom config file", "[config]") {
 
     fs::remove(cfg);
     fs::remove(dir);
+}
+
+TEST_CASE("Configuration loads default path and handles missing files", "[configuration]") {
+    namespace fs = std::filesystem;
+    Configuration cfg;
+
+    fs::path dir = fs::temp_directory_path() / "immon_load";
+    fs::create_directories(dir);
+    auto old = fs::current_path();
+    fs::current_path(dir);
+
+    SECTION("load uses default path when file exists") {
+        fs::path cfgPath = dir / fs::path{std::wstring{L"kbdlayoutmon.config"}};
+        {
+            std::wofstream out(cfgPath);
+            out << L"DEBUG=1\n";
+        }
+        cfg.load();
+        REQUIRE(cfg.getLastPath() == cfgPath.wstring());
+        REQUIRE(cfg.get(L"debug") == std::optional<std::wstring>(L"1"));
+    }
+
+    SECTION("nonexistent file does not modify state") {
+        cfg.load();
+        REQUIRE(cfg.getLastPath().empty());
+        REQUIRE(cfg.snapshot().empty());
+        cfg.load((dir / L"missing.config").wstring());
+        REQUIRE(cfg.getLastPath().empty());
+        REQUIRE(cfg.snapshot().empty());
+    }
+
+    fs::current_path(old);
+    fs::remove_all(dir);
+}
+
+TEST_CASE("set/get operations are thread safe", "[configuration]") {
+    Configuration cfg;
+    const int iterations = 1000;
+    std::thread writer([&]() {
+        for (int i = 0; i < iterations; ++i)
+            cfg.set(L"counter", std::to_wstring(i));
+    });
+    std::thread reader([&]() {
+        for (int i = 0; i < iterations; ++i)
+            cfg.get(L"counter");
+    });
+    writer.join();
+    reader.join();
+    REQUIRE(cfg.get(L"counter") == std::optional<std::wstring>(std::to_wstring(iterations - 1)));
+}
+
+TEST_CASE("snapshot returns a consistent copy", "[configuration]") {
+    Configuration cfg;
+    cfg.set(L"a", L"1");
+    auto snap = cfg.snapshot();
+    cfg.set(L"a", L"2");
+    REQUIRE(snap[L"a"] == L"1");
+    auto snap2 = cfg.snapshot();
+    REQUIRE(snap2[L"a"] == L"2");
 }
