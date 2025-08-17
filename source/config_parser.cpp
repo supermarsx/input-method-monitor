@@ -25,6 +25,28 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
         std::wstring key = currentLine.substr(0, eqPos);
         std::wstring value = currentLine.substr(eqPos + 1);
 
+        // Strip inline comments while respecting quoted sections
+        bool inQuotes = false;
+        wchar_t quoteChar = 0;
+        size_t commentPos = std::wstring::npos;
+        for (size_t i = 0; i < value.size(); ++i) {
+            wchar_t c = value[i];
+            if (inQuotes) {
+                if (c == quoteChar)
+                    inQuotes = false;
+            } else {
+                if (c == L'"' || c == L'\'') {
+                    inQuotes = true;
+                    quoteChar = c;
+                } else if (c == L'#' || c == L';') {
+                    commentPos = i;
+                    break;
+                }
+            }
+        }
+        if (commentPos != std::wstring::npos)
+            value = value.substr(0, commentPos);
+
         auto trim = [](std::wstring& s) {
             size_t start = s.find_first_not_of(L" \t\r\n");
             size_t end = s.find_last_not_of(L" \t\r\n");
@@ -37,6 +59,13 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
 
         trim(key);
         trim(value);
+
+        // Remove surrounding quotes if present
+        if (value.size() >= 2 &&
+            ((value.front() == L'"' && value.back() == L'"') ||
+             (value.front() == L'\'' && value.back() == L'\''))) {
+            value = value.substr(1, value.size() - 2);
+        }
 
         std::transform(key.begin(), key.end(), key.begin(), [](wchar_t c) {
             return std::towlower(c);

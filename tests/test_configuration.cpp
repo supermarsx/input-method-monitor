@@ -73,6 +73,28 @@ TEST_CASE("Comment lines are ignored", "[config]") {
     REQUIRE(settings.size() == 2);
 }
 
+TEST_CASE("Quoted values are preserved", "[config]") {
+    std::vector<std::wstring> lines = {
+        L"URL=\"https://example.com/path?x=1#frag\"",
+        L"NAME='John Doe'"
+    };
+    auto settings = ParseConfigLines(lines);
+    REQUIRE(settings[L"url"] == L"https://example.com/path?x=1#frag");
+    REQUIRE(settings[L"name"] == L"John Doe");
+}
+
+TEST_CASE("Inline comments are stripped", "[config]") {
+    std::vector<std::wstring> lines = {
+        L"KEY=value # comment",
+        L"FOO=\"bar #baz\" # another",
+        L"BAZ='qux ;quux' ; comment"
+    };
+    auto settings = ParseConfigLines(lines);
+    REQUIRE(settings[L"key"] == L"value");
+    REQUIRE(settings[L"foo"] == L"bar #baz");
+    REQUIRE(settings[L"baz"] == L"qux ;quux");
+}
+
 TEST_CASE("Reload custom config file", "[config]") {
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_test";
