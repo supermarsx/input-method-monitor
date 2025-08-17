@@ -2,7 +2,8 @@
 
 #include <string>
 #include <shlwapi.h>
-#include <system_error>
+#include <strsafe.h>
+#include <stdexcept>
 
 #include "configuration.h"
 #include "log.h"
@@ -14,11 +15,14 @@ void ApplyConfig(HWND hwnd);
 
 ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
     m_stopEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
-    try {
-        m_thread = std::thread(&ConfigWatcher::threadProc, this);
-    } catch (const std::system_error&) {
+    if (!m_stopEvent) {
+        WriteLog(L"Failed to create stop event.");
+        throw std::runtime_error("CreateEventW failed");
+    }
+    m_thread.reset(CreateThread(NULL, 0, &ConfigWatcher::threadProc, this, 0, NULL));
+    if (!m_thread) {
         WriteLog(L"Failed to create watcher thread.");
-        throw;
+        throw std::runtime_error("CreateThread failed");
     }
 }
 
@@ -26,26 +30,27 @@ ConfigWatcher::~ConfigWatcher() {
     if (m_stopEvent) {
         SetEvent(m_stopEvent.get());
     }
-    if (m_thread.joinable()) {
-        m_thread.join();
+    if (m_thread) {
+        WaitForSingleObject(m_thread.get(), INFINITE);
     }
+    m_thread.reset();
     m_stopEvent.reset();
 }
 
-void ConfigWatcher::threadProc(ConfigWatcher* self) {
+DWORD WINAPI ConfigWatcher::threadProc(void* param) {
+    ConfigWatcher* self = static_cast<ConfigWatcher*>(param);
     wchar_t dirPath[MAX_PATH];
     std::wstring cfgPath = g_config.getLastPath();
     if (cfgPath.empty()) {
         GetModuleFileNameW(g_hInst, dirPath, MAX_PATH);
     } else {
-        wcsncpy(dirPath, cfgPath.c_str(), MAX_PATH);
-        dirPath[MAX_PATH - 1] = L'\0';
+        StringCchCopyW(dirPath, MAX_PATH, cfgPath.c_str());
     }
     PathRemoveFileSpecW(dirPath);
 
     UniqueHandle hChange(FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE));
     if (!hChange)
-        return;
+        return 0;
 
     HANDLE handles[2] = { hChange.get(), self->m_stopEvent.get() };
     for (;;) {
@@ -67,6 +72,6 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
     }
 
     FindCloseChangeNotification(hChange.release());
-    return;
+    return 0;
 }
 
