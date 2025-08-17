@@ -54,7 +54,11 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
             g_config.load();
             ApplyConfig(self->m_hwnd);
             WriteLog(L"Configuration reloaded.");
-            FindNextChangeNotification(hChange);
+            BOOL ok = FindNextChangeNotification(hChange.get());
+            if (!ok) {
+                WriteLog(L"FindNextChangeNotification failed.");
+                break;
+            }
         } else if (wait == WAIT_OBJECT_0 + 1) {
             break;
         } else {
