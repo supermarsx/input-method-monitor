@@ -75,6 +75,7 @@ private:
     std::wofstream m_file;
     bool m_running = false;
     size_t m_maxQueueSize = 1000;
+    size_t m_suppress = 0; ///< Internal log entries pending that should not trigger rotation.
 };
 
 /// Global log instance used by all modules.

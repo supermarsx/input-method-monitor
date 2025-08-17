@@ -76,6 +76,41 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
     fs::remove_all(dir);
 }
 
+TEST_CASE("Log reports error when rotation rename fails", "[log]") {
+#ifndef _WIN32
+    using namespace std::chrono_literals;
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "immon_log_rename_fail";
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+
+    fs::path logPath = dir / "rotate.log";
+    fs::path rotated = dir / "rotate.log.1";
+    fs::create_directory(rotated);
+    g_config.set(L"log_path", logPath.wstring());
+    g_config.set(L"max_log_size_mb", L"1");
+    Log log;
+
+    std::wstring big(1024 * 1024, L'a');
+    log.write(big);
+    std::this_thread::sleep_for(200ms);
+
+    log.write(L"after");
+    std::this_thread::sleep_for(200ms);
+
+    log.shutdown();
+
+    REQUIRE(fs::is_directory(rotated));
+
+    std::wifstream f(logPath);
+    std::wstring content((std::istreambuf_iterator<wchar_t>(f)), std::istreambuf_iterator<wchar_t>());
+    REQUIRE(content.find(L"Failed to rotate log file") != std::wstring::npos);
+    REQUIRE(content.find(L"after") != std::wstring::npos);
+
+    fs::remove_all(dir);
+#endif
+}
+
 TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
     g_debugEnabled.store(true);
 
