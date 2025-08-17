@@ -211,60 +211,47 @@ bool IsLayoutHotKeyEnabled() {
     return false;
 }
 
-// Helper function to toggle Language HotKey
-void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
-    // Detect current state before toggling
-    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
-
+// Generic helper to toggle a registry-backed hotkey
+void ToggleHotKey(HWND hwnd, const wchar_t* valueName,
+                  std::atomic<bool>& enabledFlag,
+                  const wchar_t* onValue, const wchar_t* offValue,
+                  void (*updateFunc)(bool), bool overrideState = false,
+                  bool state = false) {
     WinRegHandle hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
                                KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         const wchar_t* value;
         if (overrideState) {
-            value = state ? L"3" : L"1";
-            g_languageHotKeyEnabled.store(state);
+            value = state ? onValue : offValue;
+            enabledFlag.store(state);
         } else {
-            bool cur = g_languageHotKeyEnabled.load();
-            value = cur ? L"1" : L"3";
-            g_languageHotKeyEnabled.store(!cur);
+            bool cur = enabledFlag.load();
+            value = cur ? offValue : onValue;
+            enabledFlag.store(!cur);
         }
-        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
+
+        RegSetValueEx(hKey.get(), valueName, 0, REG_SZ,
                       reinterpret_cast<const BYTE*>(value),
                       (lstrlen(value) + 1) * sizeof(wchar_t));
-        //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
 
-        // Update the shared memory value
-        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
+        if (updateFunc)
+            updateFunc(enabledFlag.load());
     }
+}
+
+// Helper function to toggle Language HotKey
+void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
+    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
+    ToggleHotKey(hwnd, L"Language HotKey", g_languageHotKeyEnabled, L"3", L"1",
+                 SetLanguageHotKeyEnabled, overrideState, state);
 }
 
 // Helper function to toggle Layout HotKey
 void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
-    // Detect current state before toggling
     g_layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
-
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
-                               KEY_SET_VALUE, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        const wchar_t* value;
-        if (overrideState) {
-            value = state ? L"3" : L"2";
-            g_layoutHotKeyEnabled.store(state);
-        } else {
-            bool cur = g_layoutHotKeyEnabled.load();
-            value = cur ? L"2" : L"3";
-            g_layoutHotKeyEnabled.store(!cur);
-        }
-        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
-                      reinterpret_cast<const BYTE*>(value),
-                      (lstrlen(value) + 1) * sizeof(wchar_t));
-        //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
-
-        // Update the shared memory value
-        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
-    }
+    ToggleHotKey(hwnd, L"Layout HotKey", g_layoutHotKeyEnabled, L"3", L"2",
+                 SetLayoutHotKeyEnabled, overrideState, state);
 }
 
 void TemporarilyEnableHotKeys(HWND hwnd) {
