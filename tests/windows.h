@@ -19,6 +19,8 @@ using BYTE = unsigned char;
 using LONG = long;
 using HOOKPROC = LRESULT(*)(int, WPARAM, LPARAM);
 using LPVOID = void*;
+using UINT = unsigned int;
+using LPBYTE = BYTE*;
 
 #define TRUE 1
 #define FALSE 0
@@ -33,6 +35,7 @@ using LPVOID = void*;
 #define ERROR_SUCCESS 0L
 #define REG_SZ 1
 #define KEY_SET_VALUE 0x0002
+#define KEY_READ 0x20019
 #define GENERIC_WRITE 0x40000000
 #define OPEN_EXISTING 3
 #define FILE_ATTRIBUTE_NORMAL 0x80
@@ -77,6 +80,21 @@ inline HANDLE CreateFileW(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) { 
 inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
 inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD, HKEY*) { return ERROR_SUCCESS; }
 inline LONG RegSetValueEx(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return ERROR_SUCCESS; }
+inline LONG RegSetValueExW(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return ERROR_SUCCESS; }
+inline LONG RegQueryValueEx(HKEY, LPCWSTR valueName, DWORD, DWORD*, BYTE* data, DWORD* len) {
+    if (valueName && data && len && *len >= sizeof(wchar_t) * 2) {
+        auto wdata = reinterpret_cast<wchar_t*>(data);
+        if (wcscmp(valueName, L"Language HotKey") == 0) {
+            wcscpy(wdata, L"1");
+        } else if (wcscmp(valueName, L"Layout HotKey") == 0) {
+            wcscpy(wdata, L"2");
+        } else {
+            wdata[0] = L'\0';
+        }
+    }
+    return ERROR_SUCCESS;
+}
+inline LONG RegDeleteValue(HKEY, LPCWSTR) { return ERROR_SUCCESS; }
 inline LONG RegCloseKey(HKEY) { return ERROR_SUCCESS; }
 inline HKL GetKeyboardLayout(DWORD) { return nullptr; }
 inline BOOL GetKeyboardLayoutName(wchar_t*) { return TRUE; }
@@ -88,3 +106,6 @@ inline HANDLE CreateMutex(void*, BOOL, LPCWSTR) { return nullptr; }
 inline DWORD WaitForSingleObject(HANDLE, DWORD) { return WAIT_OBJECT_0; }
 inline BOOL ReleaseMutex(HANDLE) { return TRUE; }
 inline void DisableThreadLibraryCalls(HINSTANCE) {}
+inline UINT SetTimer(HWND, UINT, UINT, void*) { return 1; }
+inline BOOL KillTimer(HWND, UINT) { return TRUE; }
+inline int lstrlen(const wchar_t* s) { return wcslen(s); }

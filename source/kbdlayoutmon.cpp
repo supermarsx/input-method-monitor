@@ -7,7 +7,6 @@
 #include <sstream>
 #include <shellapi.h>
 #include <vector>
-#include "res-icon.h"  // Include the resource header
 #include "configuration.h"
 #include "constants.h"
 #include "log.h"
@@ -15,23 +14,12 @@
 #include "unique_handle.h"
 #include "utils.h"
 #include "config_watcher.h"
+#include "tray_icon.h"
+#include "hotkey_registry.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
 
-#define TRAY_ICON_ID 1001
-#define WM_TRAYICON (WM_USER + 1)
-#define ID_TRAY_EXIT 1001
-#define ID_TRAY_STARTUP 1002
-#define ID_TRAY_TOGGLE_LANGUAGE 1003
-#define ID_TRAY_TOGGLE_LAYOUT 1004
-#define ID_TRAY_TEMP_ENABLE_HOTKEYS 1005
-#define ID_TRAY_APP_NAME 1006
-#define ID_TRAY_RESTART 1007
-#define ID_TRAY_OPEN_LOG 1008
-#define ID_TRAY_TOGGLE_DEBUG 1009
-#define ID_TRAY_OPEN_CONFIG 1010
-#define WM_UPDATE_TRAY_MENU (WM_USER + 2)
 
 HINSTANCE g_hInst = NULL;
 HMODULE g_hDll = NULL;
@@ -58,13 +46,7 @@ CleanupHookModuleFunc CleanupHookModule = NULL;
 
 std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug logging
 std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray icon
-bool g_startupEnabled = false; // Global variable to track startup status
-std::atomic<bool> g_languageHotKeyEnabled{false}; // Global variable to track Language HotKey status
-std::atomic<bool> g_layoutHotKeyEnabled{false}; // Global variable to track Layout HotKey status
-std::atomic<bool> g_tempHotKeysEnabled{false}; // Global flag to track temporary hotkeys status
-DWORD g_tempHotKeyTimeout = 10000; // Timeout for temporary hotkeys in milliseconds
 bool g_cliMode = false;                     // Suppress GUI/tray behavior
-NOTIFYICONDATA nid;
 HWND g_hwnd = NULL;                // Handle to our message window
 // Retrieve version information from the executable's version resource
 std::wstring GetVersionString() {
@@ -116,220 +98,6 @@ std::wstring GetUsageString() {
 
 
 
-// Helper function to check if app is set to launch at startup
-bool IsStartupEnabled() {
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER,
-                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               0, KEY_READ, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        wchar_t value[MAX_PATH];
-        DWORD value_length = MAX_PATH;
-        result = RegQueryValueEx(hKey.get(), L"kbdlayoutmon", NULL, NULL,
-                                 (LPBYTE)value, &value_length);
-        return (result == ERROR_SUCCESS);
-    }
-    return false;
-}
-
-// Helper function to add application to startup
-void AddToStartup() {
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER,
-                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               0, KEY_SET_VALUE, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        wchar_t filePath[MAX_PATH];
-        GetModuleFileNameW(NULL, filePath, MAX_PATH);
-        std::wstring quotedPath = QuotePath(filePath);
-        RegSetValueExW(hKey.get(), L"kbdlayoutmon", 0, REG_SZ,
-                       reinterpret_cast<const BYTE*>(quotedPath.c_str()),
-                       (quotedPath.size() + 1) * sizeof(wchar_t));
-        WriteLog(L"Added to startup.");
-        g_startupEnabled = true;
-    } else {
-        WriteLog(L"Failed to add to startup.");
-    }
-}
-
-// Helper function to remove application from startup
-void RemoveFromStartup() {
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER,
-                               L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
-                               0, KEY_SET_VALUE, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        RegDeleteValue(hKey.get(), L"kbdlayoutmon");
-        WriteLog(L"Removed from startup.");
-        g_startupEnabled = false;
-    } else {
-        WriteLog(L"Failed to remove from startup.");
-    }
-}
-
-// Helper function to check the status of Language HotKey
-bool IsLanguageHotKeyEnabled() {
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
-                               KEY_READ, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        wchar_t value[2];
-        DWORD value_length = sizeof(value);
-        result = RegQueryValueEx(hKey.get(), L"Language HotKey", NULL, NULL,
-                                 (LPBYTE)value, &value_length);
-
-        std::wstringstream ss;
-        ss << L"Language HotKey value: " << value;
-        WriteLog(ss.str());
-
-        return (result == ERROR_SUCCESS && wcscmp(value, L"3") == 0);
-    } else {
-        WriteLog(L"Failed to open registry key for Language HotKey.");
-    }
-    return false;
-}
-
-// Helper function to check the status of Layout HotKey
-bool IsLayoutHotKeyEnabled() {
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
-                               KEY_READ, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        wchar_t value[2];
-        DWORD value_length = sizeof(value);
-        result = RegQueryValueEx(hKey.get(), L"Layout HotKey", NULL, NULL,
-                                 (LPBYTE)value, &value_length);
-
-        std::wstringstream ss;
-        ss << L"Layout HotKey value: " << value;
-        WriteLog(ss.str());
-
-        return (result == ERROR_SUCCESS && wcscmp(value, L"3") == 0);
-    } else {
-        WriteLog(L"Failed to open registry key for Layout HotKey.");
-    }
-    return false;
-}
-
-// Generic helper to toggle a registry-backed hotkey
-void ToggleHotKey(HWND hwnd, const wchar_t* valueName,
-                  std::atomic<bool>& enabledFlag,
-                  const wchar_t* onValue, const wchar_t* offValue,
-                  void (*updateFunc)(bool), bool overrideState = false,
-                  bool state = false) {
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
-                               KEY_SET_VALUE, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        const wchar_t* value;
-        if (overrideState) {
-            value = state ? onValue : offValue;
-            enabledFlag.store(state);
-        } else {
-            bool cur = enabledFlag.load();
-            value = cur ? offValue : onValue;
-            enabledFlag.store(!cur);
-        }
-
-        RegSetValueEx(hKey.get(), valueName, 0, REG_SZ,
-                      reinterpret_cast<const BYTE*>(value),
-                      (lstrlen(value) + 1) * sizeof(wchar_t));
-
-        if (updateFunc)
-            updateFunc(enabledFlag.load());
-    }
-}
-
-// Helper function to toggle Language HotKey
-void ToggleLanguageHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
-    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
-    ToggleHotKey(hwnd, L"Language HotKey", g_languageHotKeyEnabled, L"3", L"1",
-                 SetLanguageHotKeyEnabled, overrideState, state);
-}
-
-// Helper function to toggle Layout HotKey
-void ToggleLayoutHotKey(HWND hwnd, bool overrideState = false, bool state = false) {
-    g_layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
-    ToggleHotKey(hwnd, L"Layout HotKey", g_layoutHotKeyEnabled, L"3", L"2",
-                 SetLayoutHotKeyEnabled, overrideState, state);
-}
-
-void TemporarilyEnableHotKeys(HWND hwnd) {
-    WriteLog(L"TemporarilyEnableHotKeys called.");
-
-    if (g_tempHotKeysEnabled.load()) {
-        WriteLog(L"TemporarilyEnableHotKeys already enabled. Skipping.");
-        return; // Avoid repeated enabling
-    }
-
-    g_tempHotKeysEnabled.store(true);
-
-    WinRegHandle hKey;
-    LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
-                               KEY_SET_VALUE, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ, reinterpret_cast<const BYTE*>(L"1"),
-                      (lstrlen(L"1") + 1) * sizeof(wchar_t));
-        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ, reinterpret_cast<const BYTE*>(L"2"),
-                      (lstrlen(L"2") + 1) * sizeof(wchar_t));
-        WriteLog(L"Temporarily enabled hotkeys.");
-
-        // Update the global status
-        g_languageHotKeyEnabled.store(true);
-        g_layoutHotKeyEnabled.store(true);
-
-        // Update tray menu checkmarks
-        //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
-
-        // Update the shared memory values
-        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
-        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
-
-        // Set a timer to revert changes after configured timeout
-        SetTimer(hwnd, 1, g_tempHotKeyTimeout, NULL);
-    } else {
-        WriteLog(L"Failed to open registry key for temporarily enabling hotkeys.");
-    }
-}
-
-
-// Function to handle timer events and reset hotkeys
-void OnTimer(HWND hwnd) {
-    if (g_tempHotKeysEnabled.load()) {
-        ToggleLanguageHotKey(hwnd, true, false);
-        ToggleLayoutHotKey(hwnd, true, false);
-
-        // Reset the flag
-        g_tempHotKeysEnabled.store(false);
-
-        // Update tray menu checkmarks
-        //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
-    }
-    KillTimer(hwnd, 1); // Kill the timer
-}
-
-// Function to add the tray icon
-void AddTrayIcon(HWND hwnd) {
-    if (!g_trayIconEnabled.load()) return; // Do not add tray icon if disabled in config
-
-    ZeroMemory(&nid, sizeof(nid));
-    nid.cbSize = sizeof(NOTIFYICONDATA);
-    nid.hWnd = hwnd;
-    nid.uID = 1;
-    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    nid.uCallbackMessage = WM_TRAYICON;
-    nid.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP)); // Use custom icon
-    wcscpy_s(nid.szTip, ARRAYSIZE(nid.szTip), L"kbdlayoutmon");
-    Shell_NotifyIcon(NIM_ADD, &nid);
-}
-
-// Function to remove the tray icon
-void RemoveTrayIcon() {
-    if (g_trayIconEnabled.load()) {
-        Shell_NotifyIcon(NIM_DELETE, &nid);
-    }
-}
-
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
     auto debugVal = g_config.get(L"debug");
@@ -363,52 +131,6 @@ void ApplyConfig(HWND hwnd) {
     }
 }
 
-// Function to handle tray icon menu
-void ShowTrayMenu(HWND hwnd) {
-    if (!g_trayIconEnabled.load()) return; // Do not show tray menu if tray icon is disabled
-
-    POINT pt;
-    GetCursorPos(&pt);
-    HMENU hMenu = CreatePopupMenu();
-
-    // Add tray item title with the app name (disabled, non-selectable)
-    MENUITEMINFO mii;
-    mii.cbSize = sizeof(MENUITEMINFO);
-    mii.fMask = MIIM_FTYPE | MIIM_STRING;
-    mii.fType = MFT_STRING | MFT_RIGHTJUSTIFY;
-    mii.dwTypeData = L"kbdlayoutmon";
-    InsertMenuItem(hMenu, ID_TRAY_APP_NAME, TRUE, &mii);
-    InsertMenu(hMenu, 1, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-
-    // Add startup option with checkmark if enabled
-    InsertMenu(hMenu, 2, MF_BYPOSITION | MF_STRING | (g_startupEnabled ? MF_CHECKED : 0), ID_TRAY_STARTUP, L"Launch at startup");
-    // Add toggle Language HotKey option with checkmark if enabled
-    InsertMenu(hMenu, 3, MF_BYPOSITION | MF_STRING | (g_languageHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LANGUAGE, L"Toggle Language HotKey");
-    // Add toggle Layout HotKey option with checkmark if enabled
-    InsertMenu(hMenu, 4, MF_BYPOSITION | MF_STRING | (g_layoutHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LAYOUT, L"Toggle Layout HotKey");
-    // Add option to temporarily enable hotkeys
-    InsertMenu(hMenu, 5, MF_BYPOSITION | MF_STRING, ID_TRAY_TEMP_ENABLE_HOTKEYS, L"Temporarily Enable HotKeys");
-    // Add open log option
-    InsertMenu(hMenu, 6, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_LOG, L"Open Log File");
-    // Add open config option
-    InsertMenu(hMenu, 7, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_CONFIG, L"Open Config File");
-    // Add debug toggle option with checkmark if enabled
-    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING | (g_debugEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
-    // Add separator
-    InsertMenu(hMenu, 9, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
-    // Add restart option
-    InsertMenu(hMenu, 10, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTART, L"Restart");
-    // Add exit option
-    InsertMenu(hMenu, 11, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Quit");
-
-    // Set the foreground window before calling TrackPopupMenu or the menu will not disappear when the user clicks outside of it
-    SetForegroundWindow(hwnd);
-
-    // Display the menu
-    TrackPopupMenu(hMenu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, NULL);
-    DestroyMenu(hMenu);
-}
-
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {
         case WM_TRAYICON:
@@ -417,74 +139,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             }
             break;
         case WM_COMMAND:
-            switch (LOWORD(wParam)) {
-                case ID_TRAY_EXIT:
-                    PostQuitMessage(0);
-                    break;
-                case ID_TRAY_STARTUP:
-                    if (g_startupEnabled) {
-                        RemoveFromStartup();
-                    } else {
-                        AddToStartup();
-                    }
-                    //PostMessage(hwnd, WM_UPDATE_TRAY_MENU, 0, 0);
-                    break;
-                case ID_TRAY_TOGGLE_LANGUAGE:
-                    ToggleLanguageHotKey(hwnd);
-                    break;
-                case ID_TRAY_TOGGLE_LAYOUT:
-                    ToggleLayoutHotKey(hwnd);
-                    break;
-                case ID_TRAY_TEMP_ENABLE_HOTKEYS:
-                    TemporarilyEnableHotKeys(hwnd);
-                    break;
-                case ID_TRAY_OPEN_LOG:
-                {
-                    wchar_t logPath[MAX_PATH] = {0};
-                    auto val = g_config.get(L"log_path");
-                    if (val && !val->empty()) {
-                        lstrcpynW(logPath, val->c_str(), MAX_PATH);
-                    } else if (g_hInst) {
-                        GetModuleFileName(g_hInst, logPath, MAX_PATH);
-                        PathRemoveFileSpec(logPath);
-                        PathCombine(logPath, logPath, L"kbdlayoutmon.log");
-                    } else {
-                        lstrcpyW(logPath, L"kbdlayoutmon.log");
-                    }
-                    ShellExecute(NULL, L"open", logPath, NULL, NULL, SW_SHOWNORMAL);
-                    break;
-                }
-                case ID_TRAY_OPEN_CONFIG:
-                {
-                    wchar_t cfgPath[MAX_PATH] = {0};
-                    if (g_hInst) {
-                        GetModuleFileName(g_hInst, cfgPath, MAX_PATH);
-                        PathRemoveFileSpec(cfgPath);
-                        PathCombine(cfgPath, cfgPath, configFile.c_str());
-                    } else {
-                        lstrcpynW(cfgPath, configFile.c_str(), MAX_PATH);
-                    }
-                    ShellExecute(NULL, L"open", cfgPath, NULL, NULL, SW_SHOWNORMAL);
-                    break;
-                }
-                case ID_TRAY_TOGGLE_DEBUG:
-                    if (g_debugEnabled.load()) {
-                        WriteLog(L"Debug logging disabled.");
-                        g_debugEnabled.store(false);
-                        if (SetDebugLoggingEnabled)
-                            SetDebugLoggingEnabled(false);
-                    } else {
-                        g_debugEnabled.store(true);
-                        if (SetDebugLoggingEnabled)
-                            SetDebugLoggingEnabled(true);
-                        WriteLog(L"Debug logging enabled.");
-                    }
-                    break;
-                case ID_TRAY_RESTART:
-                    // Restart the application
-                    ShellExecute(NULL, L"open", L"cmd.exe", L"/C taskkill /IM kbdlayoutmon.exe /F && start kbdlayoutmon.exe", NULL, SW_HIDE);
-                    break;
-            }
+            HandleTrayCommand(hwnd, wParam);
             break;
         case WM_TIMER:
             OnTimer(hwnd);
