@@ -20,17 +20,12 @@ extern HINSTANCE g_hInst; // Provided by the executable
 Configuration g_config;
 
 void Configuration::load(std::optional<std::wstring> path) {
-    std::lock_guard<std::mutex> lock(m_mutex);
     std::wstring fullPath;
-
     if (path && !path->empty()) {
-        m_lastPath = *path;
         fullPath = *path;
+    } else if (!m_lastPath.empty()) {
+        fullPath = m_lastPath;
     } else {
-        if (!m_lastPath.empty()) {
-            fullPath = m_lastPath;
-        }
-        if (fullPath.empty()) {
 #ifdef _WIN32
         wchar_t configPath[MAX_PATH];
         GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
@@ -41,8 +36,6 @@ void Configuration::load(std::optional<std::wstring> path) {
         std::filesystem::path cfg = std::filesystem::current_path() / configFile;
         fullPath = cfg.wstring();
 #endif
-            m_lastPath = fullPath;
-        }
     }
 
 #ifdef _WIN32
@@ -56,7 +49,13 @@ void Configuration::load(std::optional<std::wstring> path) {
         return;
     }
 
-    settings = ParseConfigStream(file);
+    auto newSettings = ParseConfigStream(file);
+
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_lastPath = fullPath;
+        settings = std::move(newSettings);
+    }
 }
 
 std::wstring Configuration::getLastPath() const {
