@@ -20,6 +20,8 @@ add_executable(kbdlayoutmon
     ${COMMON_SOURCES}
     source/config_watcher.cpp
     source/log.cpp
+    source/tray_icon.cpp
+    source/hotkey_registry.cpp
     resources/res-icon.rc
     resources/res-versioninfo.rc
 )
@@ -75,15 +77,18 @@ add_executable(run_tests
     tests/bench_pipe.cpp
     tests/test_config_watcher.cpp
     tests/test_worker_thread.cpp
+    tests/test_hotkey_registry.cpp
     source/log.cpp
     source/configuration.cpp
     source/config_parser.cpp
     source/config_watcher.cpp
+    source/hotkey_registry.cpp
     source/kbdlayoutmonhook.cpp
 )
 
 target_include_directories(run_tests PRIVATE tests source)
 target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain)
+target_compile_definitions(run_tests PRIVATE UNIT_TEST)
 
 enable_testing()
 add_test(NAME run_tests COMMAND run_tests)
