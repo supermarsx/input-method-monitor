@@ -5,9 +5,20 @@
 using HANDLE = void*;
 using HINSTANCE = void*;
 using HWND = void*;
+using HKL = void*;
+using HHOOK = void*;
+using HKEY = void*;
 using DWORD = unsigned long;
 using BOOL = int;
 using LPCWSTR = const wchar_t*;
+using WPARAM = uintptr_t;
+using LPARAM = intptr_t;
+using LRESULT = intptr_t;
+using LANGID = unsigned short;
+using BYTE = unsigned char;
+using LONG = long;
+using HOOKPROC = LRESULT(*)(int, WPARAM, LPARAM);
+using LPVOID = void*;
 
 #define TRUE 1
 #define FALSE 0
@@ -16,6 +27,33 @@ using LPCWSTR = const wchar_t*;
 #define MAX_PATH 260
 #define FILE_NOTIFY_CHANGE_LAST_WRITE 0x00000010
 #define INVALID_HANDLE_VALUE ((HANDLE)(intptr_t)(-1))
+#define HSHELL_LANGUAGE 0x0001
+#define WH_SHELL 10
+#define KL_NAMELENGTH 9
+#define ERROR_SUCCESS 0L
+#define REG_SZ 1
+#define KEY_SET_VALUE 0x0002
+#define GENERIC_WRITE 0x40000000
+#define OPEN_EXISTING 3
+#define FILE_ATTRIBUTE_NORMAL 0x80
+#define HKEY_CURRENT_USER ((HKEY)1)
+#define HKEY_USERS ((HKEY)2)
+#define LOWORD(l) ((LANGID)((uintptr_t)(l) & 0xFFFF))
+#define UNREFERENCED_PARAMETER(x) (void)(x)
+#define DLL_PROCESS_ATTACH 1
+#define DLL_PROCESS_DETACH 0
+#ifndef __declspec
+#define __declspec(x)
+#endif
+#ifndef CALLBACK
+#define CALLBACK
+#endif
+#ifndef WINAPI
+#define WINAPI
+#endif
+#ifndef APIENTRY
+#define APIENTRY
+#endif
 
 extern "C" {
     extern HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR);
@@ -35,3 +73,18 @@ inline BOOL FindCloseChangeNotification(HANDLE h) { return pFindCloseChangeNotif
 inline DWORD WaitForMultipleObjects(DWORD a, const HANDLE* b, BOOL c, DWORD d) { return pWaitForMultipleObjects(a,b,c,d); }
 inline DWORD GetModuleFileNameW(HINSTANCE inst, wchar_t* buffer, DWORD size) { return pGetModuleFileNameW(inst, buffer, size); }
 inline void CloseHandle(HANDLE) {}
+inline HANDLE CreateFileW(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) { return nullptr; }
+inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
+inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD, HKEY*) { return ERROR_SUCCESS; }
+inline LONG RegSetValueEx(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return ERROR_SUCCESS; }
+inline LONG RegCloseKey(HKEY) { return ERROR_SUCCESS; }
+inline HKL GetKeyboardLayout(DWORD) { return nullptr; }
+inline BOOL GetKeyboardLayoutName(wchar_t*) { return TRUE; }
+inline HHOOK SetWindowsHookEx(int, HOOKPROC, HINSTANCE, DWORD) { return (HHOOK)1; }
+inline LRESULT CallNextHookEx(HHOOK, int, WPARAM, LPARAM) { return 0; }
+inline BOOL UnhookWindowsHookEx(HHOOK) { return TRUE; }
+inline DWORD GetLastError() { return 0; }
+inline HANDLE CreateMutex(void*, BOOL, LPCWSTR) { return nullptr; }
+inline DWORD WaitForSingleObject(HANDLE, DWORD) { return WAIT_OBJECT_0; }
+inline BOOL ReleaseMutex(HANDLE) { return TRUE; }
+inline void DisableThreadLibraryCalls(HINSTANCE) {}
