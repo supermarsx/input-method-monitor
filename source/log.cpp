@@ -154,6 +154,13 @@ void Log::process() {
         std::wcerr << L"Failed to open log file." << std::endl;
 #endif
     }
+
+    auto logError = [this](const wchar_t* msg) {
+        ++m_suppress;
+        bool prev = g_debugEnabled.exchange(true);
+        this->write(msg);
+        g_debugEnabled.store(prev);
+    };
     for (;;) {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cv.wait(lock, [this] { return !m_queue.empty() || !m_running; });
@@ -162,8 +169,14 @@ void Log::process() {
             m_queue.pop();
             lock.unlock();
 
+            bool suppress = false;
+            if (m_suppress > 0) {
+                suppress = true;
+                --m_suppress;
+            }
+
             std::wstring cfgPath = GetLogPath();
-            if (cfgPath != path) {
+            if (cfgPath != path || !m_file.is_open()) {
                 if (m_file.is_open())
                     m_file.close();
                 path = cfgPath;
@@ -172,6 +185,12 @@ void Log::process() {
 #else
                 m_file.open(std::filesystem::path(path), std::ios::app);
 #endif
+                if (!m_file.is_open()) {
+                    if (!suppress)
+                        logError(L"Failed to open log file.");
+                    lock.lock();
+                    continue;
+                }
             }
 
             if (m_file.is_open()) {
@@ -189,32 +208,53 @@ void Log::process() {
 
 #ifdef _WIN32
                 WIN32_FILE_ATTRIBUTE_DATA fad;
-                if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad)) {
+                if (!suppress && GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad)) {
                     unsigned long long size = (static_cast<unsigned long long>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
                     if (size > maxBytes) {
                         m_file.close();
                         std::wstring rotated = path + L".1";
-                        MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING);
-#ifdef _WIN32
-                        m_file.open(path.c_str(), std::ios::out | std::ios::trunc);
-#else
-                        m_file.open(std::filesystem::path(path), std::ios::out | std::ios::trunc);
-#endif
+                        if (!MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+                            logError(L"Failed to rotate log file.");
+                            m_file.open(path.c_str(), std::ios::app);
+                            if (!m_file.is_open()) {
+                                logError(L"Failed to reopen log file after failed rotation.");
+                                lock.lock();
+                                continue;
+                            }
+                        } else {
+                            m_file.open(path.c_str(), std::ios::out | std::ios::trunc);
+                            if (!m_file.is_open()) {
+                                logError(L"Failed to reopen log file after rotation.");
+                                lock.lock();
+                                continue;
+                            }
+                        }
                     }
                 }
 #else
                 namespace fs = std::filesystem;
                 try {
-                    if (fs::exists(path)) {
+                    if (!suppress && fs::exists(path)) {
                         auto size = fs::file_size(path);
                         if (size > maxBytes) {
                             m_file.close();
-                            fs::rename(path, path + L".1");
-#ifdef _WIN32
-                            m_file.open(path.c_str(), std::ios::out | std::ios::trunc);
-#else
-                            m_file.open(std::filesystem::path(path), std::ios::out | std::ios::trunc);
-#endif
+                            try {
+                                fs::rename(path, path + L".1");
+                                m_file.open(fs::path(path), std::ios::out | std::ios::trunc);
+                                if (!m_file.is_open()) {
+                                    logError(L"Failed to reopen log file after rotation.");
+                                    lock.lock();
+                                    continue;
+                                }
+                            } catch (...) {
+                                logError(L"Failed to rotate log file.");
+                                m_file.open(fs::path(path), std::ios::app);
+                                if (!m_file.is_open()) {
+                                    logError(L"Failed to reopen log file after failed rotation.");
+                                    lock.lock();
+                                    continue;
+                                }
+                            }
                         }
                     }
                 } catch (...) {
