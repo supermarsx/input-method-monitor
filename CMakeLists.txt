@@ -72,6 +72,7 @@ add_executable(run_tests
     tests/test_configuration.cpp
     tests/test_log.cpp
     tests/test_utils.cpp
+    tests/bench_pipe.cpp
     source/log.cpp
     source/configuration.cpp
     source/config_parser.cpp
