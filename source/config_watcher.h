@@ -1,6 +1,7 @@
 #pragma once
 
 #include <windows.h>
+#include <thread>
 #include "unique_handle.h"
 
 /**
@@ -20,10 +21,10 @@ public:
     ConfigWatcher& operator=(const ConfigWatcher&) = delete;
 
 private:
-    static DWORD WINAPI threadProc(LPVOID param);
+    static void threadProc(ConfigWatcher* self);
 
     HWND m_hwnd;            ///< Window receiving update notifications.
-    UniqueHandle m_thread;  ///< Background thread handle.
+    std::thread m_thread;   ///< Background thread.
     UniqueHandle m_stopEvent; ///< Event used to signal thread shutdown.
 };
 

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <shlwapi.h>
+#include <system_error>
 
 #include "configuration.h"
 #include "log.h"
@@ -13,22 +14,25 @@ void ApplyConfig(HWND hwnd);
 
 ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
     m_stopEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
-    m_thread.reset(CreateThread(NULL, 0, threadProc, this, 0, NULL));
+    try {
+        m_thread = std::thread(&ConfigWatcher::threadProc, this);
+    } catch (const std::system_error&) {
+        WriteLog(L"Failed to create watcher thread.");
+        throw;
+    }
 }
 
 ConfigWatcher::~ConfigWatcher() {
     if (m_stopEvent) {
         SetEvent(m_stopEvent.get());
     }
-    if (m_thread) {
-        WaitForSingleObject(m_thread.get(), INFINITE);
-        m_thread.reset();
+    if (m_thread.joinable()) {
+        m_thread.join();
     }
     m_stopEvent.reset();
 }
 
-DWORD WINAPI ConfigWatcher::threadProc(LPVOID param) {
-    ConfigWatcher* self = static_cast<ConfigWatcher*>(param);
+void ConfigWatcher::threadProc(ConfigWatcher* self) {
     wchar_t dirPath[MAX_PATH];
     std::wstring cfgPath = g_config.getLastPath();
     if (cfgPath.empty()) {
@@ -41,7 +45,7 @@ DWORD WINAPI ConfigWatcher::threadProc(LPVOID param) {
 
     UniqueHandle hChange(FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE));
     if (!hChange)
-        return 0;
+        return;
 
     HANDLE handles[2] = { hChange.get(), self->m_stopEvent.get() };
     for (;;) {
@@ -59,6 +63,6 @@ DWORD WINAPI ConfigWatcher::threadProc(LPVOID param) {
     }
 
     FindCloseChangeNotification(hChange.release());
-    return 0;
+    return;
 }
 
