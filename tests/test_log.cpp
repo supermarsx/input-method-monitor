@@ -10,10 +10,11 @@
 using HINSTANCE = void*;
 #endif
 
-HINSTANCE g_hInst = NULL;
-std::atomic<bool> g_debugEnabled{true};
+extern HINSTANCE g_hInst;
+extern std::atomic<bool> g_debugEnabled;
 
 TEST_CASE("Log switches files when path changes", "[log]") {
+    g_debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_test";
@@ -49,6 +50,7 @@ TEST_CASE("Log switches files when path changes", "[log]") {
 }
 
 TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
+    g_debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rotate_test";
@@ -78,6 +80,7 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
 
 TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 #ifndef _WIN32
+    g_debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rename_fail";

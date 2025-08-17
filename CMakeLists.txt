@@ -74,10 +74,12 @@ add_executable(run_tests
     tests/test_utils.cpp
     tests/bench_pipe.cpp
     tests/test_config_watcher.cpp
+    tests/test_worker_thread.cpp
     source/log.cpp
     source/configuration.cpp
     source/config_parser.cpp
     source/config_watcher.cpp
+    source/kbdlayoutmonhook.cpp
 )
 
 target_include_directories(run_tests PRIVATE tests source)

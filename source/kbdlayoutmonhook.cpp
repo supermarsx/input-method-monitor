@@ -35,7 +35,7 @@ std::thread g_workerThread;
 std::mutex g_queueMutex;
 std::condition_variable g_queueCV;
 std::queue<std::pair<std::wstring, std::wstring>> g_taskQueue;
-bool g_workerRunning = false;
+std::atomic<bool> g_workerRunning{false};
 
 void IncrementRefCount();
 void DecrementRefCount();
@@ -154,8 +154,8 @@ void SetDefaultInputMethodInRegistry(const std::wstring& localeID, const std::ws
 void WorkerThread() {
     for (;;) {
         std::unique_lock<std::mutex> lock(g_queueMutex);
-        g_queueCV.wait(lock, [] { return !g_taskQueue.empty() || !g_workerRunning; });
-        if (!g_workerRunning && g_taskQueue.empty())
+        g_queueCV.wait(lock, [] { return !g_taskQueue.empty() || !g_workerRunning.load(); });
+        if (!g_workerRunning.load() && g_taskQueue.empty())
             break;
         auto task = std::move(g_taskQueue.front());
         g_taskQueue.pop();
@@ -166,18 +166,24 @@ void WorkerThread() {
 }
 
 void StartWorkerThread() {
-    g_workerRunning = true;
-    g_workerThread = std::thread(WorkerThread);
+    std::lock_guard<std::mutex> lock(g_queueMutex);
+    if (!g_workerRunning.load()) {
+        g_workerRunning.store(true);
+        g_workerThread = std::thread(WorkerThread);
+    }
 }
 
 void StopWorkerThread() {
+    std::thread worker;
     {
         std::lock_guard<std::mutex> lock(g_queueMutex);
-        g_workerRunning = false;
+        if (!g_workerRunning.exchange(false))
+            return;
+        g_queueCV.notify_all();
+        worker = std::move(g_workerThread);
     }
-    g_queueCV.notify_all();
-    if (g_workerThread.joinable())
-        g_workerThread.join();
+    if (worker.joinable())
+        worker.join();
 }
 
 /**
@@ -219,7 +225,7 @@ LRESULT CALLBACK ShellProc(int nCode, WPARAM wParam, LPARAM lParam) {
             ss << L"Keyboard layout changed. Locale ID: " << localeID << L", KLID: " << klid;
             WriteLog(ss.str());
 
-            if (!g_workerRunning)
+            if (!g_workerRunning.load())
                 StartWorkerThread();
 
             {
