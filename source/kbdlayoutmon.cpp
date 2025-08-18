@@ -11,7 +11,7 @@
 #include "constants.h"
 #include "log.h"
 #include "winreg_handle.h"
-#include "unique_handle.h"
+#include "handle_guard.h"
 #include "utils.h"
 #include "config_watcher.h"
 #include "tray_icon.h"
@@ -23,7 +23,7 @@ void ApplyConfig(HWND hwnd);
 
 HINSTANCE g_hInst = NULL;
 HMODULE g_hDll = NULL;
-HANDLE g_hInstanceMutex = NULL; // Mutex to enforce single instance
+HandleGuard g_hInstanceMutex; // Mutex to enforce single instance
 typedef BOOL(*InstallGlobalHookFunc)();
 typedef void(*UninstallGlobalHookFunc)();
 typedef void(*SetLanguageHotKeyEnabledFunc)(bool);
@@ -178,7 +178,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     }
 
     // Create a named mutex to ensure a single instance
-    g_hInstanceMutex = CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton");
+    g_hInstanceMutex.reset(CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton"));
     if (g_hInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         WriteLog(L"Another instance is already running.");
         if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
@@ -192,8 +192,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         } else {
             MessageBox(NULL, L"Another instance is already running.", L"Input Method Monitor", MB_ICONEXCLAMATION | MB_OK);
         }
-        ReleaseMutex(g_hInstanceMutex);
-        CloseHandle(g_hInstanceMutex);
+        ReleaseMutex(g_hInstanceMutex.get());
+        g_hInstanceMutex.reset();
         return 0;
     }
 
@@ -256,8 +256,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 LocalFree(argv);
                 if (g_hInstanceMutex) {
-                    ReleaseMutex(g_hInstanceMutex);
-                    CloseHandle(g_hInstanceMutex);
+                    ReleaseMutex(g_hInstanceMutex.get());
+                    g_hInstanceMutex.reset();
                 }
                 return 0;
             } else if (wcscmp(argv[i], L"--help") == 0) {
@@ -275,8 +275,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 }
                 LocalFree(argv);
                 if (g_hInstanceMutex) {
-                    ReleaseMutex(g_hInstanceMutex);
-                    CloseHandle(g_hInstanceMutex);
+                    ReleaseMutex(g_hInstanceMutex.get());
+                    g_hInstanceMutex.reset();
                 }
                 return 0;
             }
@@ -315,8 +315,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ss << L"Failed to register window class. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str());
         if (g_hInstanceMutex) {
-            ReleaseMutex(g_hInstanceMutex);
-            CloseHandle(g_hInstanceMutex);
+            ReleaseMutex(g_hInstanceMutex.get());
+            g_hInstanceMutex.reset();
         }
         return 1;
     }
@@ -340,8 +340,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ss << L"Failed to create message-only window. Error code: 0x" << std::hex << errorCode;
         WriteLog(ss.str());
         if (g_hInstanceMutex) {
-            ReleaseMutex(g_hInstanceMutex);
-            CloseHandle(g_hInstanceMutex);
+            ReleaseMutex(g_hInstanceMutex.get());
+            g_hInstanceMutex.reset();
         }
         return 1;
     }
@@ -363,8 +363,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             ss << L"Failed to load kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
             WriteLog(ss.str());
             if (g_hInstanceMutex) {
-                ReleaseMutex(g_hInstanceMutex);
-                CloseHandle(g_hInstanceMutex);
+                ReleaseMutex(g_hInstanceMutex.get());
+                g_hInstanceMutex.reset();
             }
             return 1;
         }
@@ -388,8 +388,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             WriteLog(ss.str());
             FreeLibrary(g_hDll);
             if (g_hInstanceMutex) {
-                ReleaseMutex(g_hInstanceMutex);
-                CloseHandle(g_hInstanceMutex);
+                ReleaseMutex(g_hInstanceMutex.get());
+                g_hInstanceMutex.reset();
             }
             return 1;
         }
@@ -400,8 +400,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             CleanupHookModule();
             FreeLibrary(g_hDll);
             if (g_hInstanceMutex) {
-                ReleaseMutex(g_hInstanceMutex);
-                CloseHandle(g_hInstanceMutex);
+                ReleaseMutex(g_hInstanceMutex.get());
+                g_hInstanceMutex.reset();
             }
             return 1;
         }
@@ -414,8 +414,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             CleanupHookModule();
             FreeLibrary(g_hDll);
             if (g_hInstanceMutex) {
-                ReleaseMutex(g_hInstanceMutex);
-                CloseHandle(g_hInstanceMutex);
+                ReleaseMutex(g_hInstanceMutex.get());
+                g_hInstanceMutex.reset();
             }
             return 1;
         }
@@ -434,8 +434,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     CleanupHookModule();
     FreeLibrary(g_hDll);
     if (g_hInstanceMutex) {
-        ReleaseMutex(g_hInstanceMutex);
-        CloseHandle(g_hInstanceMutex);
+        ReleaseMutex(g_hInstanceMutex.get());
+        g_hInstanceMutex.reset();
     }
     WriteLog(L"Executable stopped.");
     return static_cast<int>(msg.wParam);
