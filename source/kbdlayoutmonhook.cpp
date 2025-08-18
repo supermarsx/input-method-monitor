@@ -331,14 +331,6 @@ extern "C" __declspec(dllexport) void SetLayoutHotKeyEnabled(bool enabled) {
 }
 
 /**
- * @brief Update debug logging state for the DLL.
- * @param enabled When true, log messages are written.
- */
-extern "C" __declspec(dllexport) void SetDebugLoggingEnabled(bool enabled) {
-    g_debugEnabled.store(enabled);
-}
-
-/**
  * @brief Standard DLL entry point called by the loader.
  */
 BOOL APIENTRY DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {

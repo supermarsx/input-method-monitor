@@ -21,7 +21,6 @@ inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); 
 #include "configuration.h"
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
-extern std::atomic<bool> g_debugEnabled;
 std::atomic<bool> g_verboseLogging{false};
 
 namespace {
@@ -51,6 +50,11 @@ std::wstring GetLogPath() {
 
 /// Global log instance used by the executable and DLL.
 Log g_log;
+
+extern std::atomic<bool> g_debugEnabled;
+extern "C" void SetDebugLoggingEnabled(bool enabled) {
+    g_debugEnabled.store(enabled);
+}
 
 extern "C" void WriteLog(const wchar_t* message) {
     g_log.write(message);
