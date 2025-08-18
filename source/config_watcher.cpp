@@ -43,7 +43,7 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
     }
     PathRemoveFileSpecW(dirPath);
 
-    UniqueHandle hChange(FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE));
+    HandleGuard hChange(FindFirstChangeNotificationW(dirPath, FALSE, FILE_NOTIFY_CHANGE_LAST_WRITE));
     if (!hChange)
         return;
 

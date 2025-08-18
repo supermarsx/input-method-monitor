@@ -2,7 +2,7 @@
 
 #include <windows.h>
 #include <thread>
-#include "unique_handle.h"
+#include "handle_guard.h"
 
 /**
  * @brief RAII helper that watches the configuration file for changes.
@@ -25,6 +25,6 @@ private:
 
     HWND m_hwnd;            ///< Window receiving update notifications.
     std::thread m_thread;   ///< Background thread.
-    UniqueHandle m_stopEvent; ///< Event used to signal thread shutdown.
+    HandleGuard m_stopEvent; ///< Event used to signal thread shutdown.
 };
 
