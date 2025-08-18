@@ -3,6 +3,20 @@
 #include <cwctype>
 #include <stdexcept>
 
+namespace {
+std::wstring ParseUnsignedOrDefault(const std::wstring& value, unsigned long def) {
+    try {
+        if (!value.empty() && value[0] == L'-') {
+            throw std::invalid_argument("negative");
+        }
+        unsigned long parsed = std::stoul(value);
+        return std::to_wstring(parsed);
+    } catch (...) {
+        return std::to_wstring(def);
+    }
+}
+} // namespace
+
 std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wstring>& lines) {
     std::map<std::wstring, std::wstring> result;
     for (const std::wstring& line : lines) {
@@ -72,25 +86,11 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
         });
 
         if (key == L"temp_hotkey_timeout") {
-            try {
-                if (!value.empty() && value[0] == L'-') {
-                    throw std::invalid_argument("negative");
-                }
-                unsigned long timeout = std::stoul(value);
-                result[key] = std::to_wstring(timeout);
-            } catch (...) {
-                result[key] = L"10000";
-            }
+            result[key] = ParseUnsignedOrDefault(value, 10000);
         } else if (key == L"max_log_size_mb") {
-            try {
-                if (!value.empty() && value[0] == L'-') {
-                    throw std::invalid_argument("negative");
-                }
-                unsigned long size = std::stoul(value);
-                result[key] = std::to_wstring(size);
-            } catch (...) {
-                result[key] = L"10";
-            }
+            result[key] = ParseUnsignedOrDefault(value, 10);
+        } else if (key == L"max_queue_size") {
+            result[key] = ParseUnsignedOrDefault(value, 1000);
         } else {
             result[key] = value;
         }
