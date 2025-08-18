@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <thread>
 #include <optional>
+#include <limits>
 
 
 TEST_CASE("Valid entries are parsed", "[config]") {
@@ -15,7 +16,8 @@ TEST_CASE("Valid entries are parsed", "[config]") {
         L"TRAY_ICON=0",
         L"Temp_Hotkey_TimeOut=5000",
         L"LOG_PATH=C:/tmp/log.txt",
-        L"MAX_LOG_SIZE_MB=5"
+        L"MAX_LOG_SIZE_MB=5",
+        L"MAX_QUEUE_SIZE=2000"
     };
     auto settings = ParseConfigLines(lines);
     REQUIRE(settings[L"debug"] == L"1");
@@ -23,6 +25,7 @@ TEST_CASE("Valid entries are parsed", "[config]") {
     REQUIRE(settings[L"temp_hotkey_timeout"] == L"5000");
     REQUIRE(settings[L"log_path"] == L"C:/tmp/log.txt");
     REQUIRE(settings[L"max_log_size_mb"] == L"5");
+    REQUIRE(settings[L"max_queue_size"] == L"2000");
 }
 
 TEST_CASE("Malformed lines are ignored", "[config]") {
@@ -42,7 +45,8 @@ TEST_CASE("Whitespace handling", "[config]") {
         L"\tTRAY_ICON\t=\t1\t",
         L"TEMP_HOTKEY_TIMEOUT = notanumber",
         L"  \tLOG_PATH\t =  path/space  ",
-        L"MAX_LOG_SIZE_MB = invalid"
+        L"MAX_LOG_SIZE_MB = invalid",
+        L"MAX_QUEUE_SIZE = nope"
     };
     auto settings = ParseConfigLines(lines);
     REQUIRE(settings[L"debug"] == L"1");
@@ -50,16 +54,33 @@ TEST_CASE("Whitespace handling", "[config]") {
     REQUIRE(settings[L"temp_hotkey_timeout"] == L"10000");
     REQUIRE(settings[L"log_path"] == L"path/space");
     REQUIRE(settings[L"max_log_size_mb"] == L"10");
+    REQUIRE(settings[L"max_queue_size"] == L"1000");
 }
 
 TEST_CASE("Negative values fallback", "[config]") {
     std::vector<std::wstring> lines = {
         L"TEMP_HOTKEY_TIMEOUT=-5000",
-        L"MAX_LOG_SIZE_MB=-2"
+        L"MAX_LOG_SIZE_MB=-2",
+        L"MAX_QUEUE_SIZE=-1"
     };
     auto settings = ParseConfigLines(lines);
     REQUIRE(settings[L"temp_hotkey_timeout"] == L"10000");
     REQUIRE(settings[L"max_log_size_mb"] == L"10");
+    REQUIRE(settings[L"max_queue_size"] == L"1000");
+}
+
+TEST_CASE("Overflow values fallback", "[config]") {
+    std::wstring big = std::to_wstring(std::numeric_limits<unsigned long>::max());
+    big.push_back(L'0');
+    std::vector<std::wstring> lines = {
+        L"TEMP_HOTKEY_TIMEOUT=" + big,
+        L"MAX_LOG_SIZE_MB=" + big,
+        L"MAX_QUEUE_SIZE=" + big
+    };
+    auto settings = ParseConfigLines(lines);
+    REQUIRE(settings[L"temp_hotkey_timeout"] == L"10000");
+    REQUIRE(settings[L"max_log_size_mb"] == L"10");
+    REQUIRE(settings[L"max_queue_size"] == L"1000");
 }
 
 TEST_CASE("Comment lines are ignored", "[config]") {
