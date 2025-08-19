@@ -17,9 +17,10 @@ using LRESULT = intptr_t;
 using LANGID = unsigned short;
 using BYTE = unsigned char;
 using LONG = long;
-using HOOKPROC = LRESULT(*)(int, WPARAM, LPARAM);
-using LPVOID = void*;
 using UINT = unsigned int;
+using HOOKPROC = LRESULT(*)(int, WPARAM, LPARAM);
+using TIMERPROC = void(*)(HWND, UINT, UINT, DWORD);
+using LPVOID = void*;
 using LPBYTE = BYTE*;
 
 #define TRUE 1
@@ -106,6 +107,8 @@ inline HANDLE CreateMutex(void*, BOOL, LPCWSTR) { return nullptr; }
 inline DWORD WaitForSingleObject(HANDLE, DWORD) { return WAIT_OBJECT_0; }
 inline BOOL ReleaseMutex(HANDLE) { return TRUE; }
 inline void DisableThreadLibraryCalls(HINSTANCE) {}
-inline UINT SetTimer(HWND, UINT, UINT, void*) { return 1; }
-inline BOOL KillTimer(HWND, UINT) { return TRUE; }
+extern UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC);
+extern BOOL (*pKillTimer)(HWND, UINT);
+inline UINT SetTimer(HWND a, UINT b, UINT c, TIMERPROC d) { return pSetTimer(a, b, c, d); }
+inline BOOL KillTimer(HWND a, UINT b) { return pKillTimer(a, b); }
 inline int lstrlen(const wchar_t* s) { return wcslen(s); }

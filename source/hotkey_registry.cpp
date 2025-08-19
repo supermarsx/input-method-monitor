@@ -4,6 +4,7 @@
 #include "winreg_handle.h"
 #include "configuration.h"
 #include <sstream>
+#include <memory>
 
 // Global variable definitions
 bool g_startupEnabled = false;
@@ -13,6 +14,8 @@ std::atomic<bool> g_layoutHotKeyEnabled{false};
 #endif
 std::atomic<bool> g_tempHotKeysEnabled{false};
 DWORD g_tempHotKeyTimeout = 10000;
+constexpr UINT TEMP_HOTKEY_TIMER_ID = 1;
+std::unique_ptr<TimerGuard> g_tempHotKeyTimer;
 
 // Helper function to check if app is set to launch at startup
 bool IsStartupEnabled() {
@@ -175,7 +178,16 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
 
         // Set a timer to revert changes after configured timeout
-        SetTimer(hwnd, 1, g_tempHotKeyTimeout, NULL);
+        auto timer = std::make_unique<TimerGuard>(hwnd, TEMP_HOTKEY_TIMER_ID,
+                                                 g_tempHotKeyTimeout, nullptr);
+        if (*timer) {
+            g_tempHotKeyTimer = std::move(timer);
+        } else {
+            WriteLog(L"Failed to set timer for temporarily enabling hotkeys.");
+            ToggleLanguageHotKey(hwnd, true, false);
+            ToggleLayoutHotKey(hwnd, true, false);
+            g_tempHotKeysEnabled.store(false);
+        }
     } else {
         WriteLog(L"Failed to open registry key for temporarily enabling hotkeys.");
     }
@@ -187,5 +199,5 @@ void OnTimer(HWND hwnd) {
         ToggleLayoutHotKey(hwnd, true, false);
         g_tempHotKeysEnabled.store(false);
     }
-    KillTimer(hwnd, 1);
+    g_tempHotKeyTimer.reset();
 }

@@ -7,7 +7,8 @@ if ! echo '#include <catch2/catch_test_macros.hpp>' | g++ -std=c++17 -x c++ - -f
     exit 1
 fi
 
-g++ -std=c++17 tests/test_configuration.cpp tests/test_log.cpp tests/test_utils.cpp \
+g++ -std=c++17 -I tests \
+    tests/test_configuration.cpp tests/test_log.cpp tests/test_utils.cpp tests/test_timer_guard.cpp \
     source/configuration.cpp source/log.cpp source/config_parser.cpp -o tests/run_tests \
     -lCatch2Main -lCatch2 -pthread
 ./tests/run_tests
