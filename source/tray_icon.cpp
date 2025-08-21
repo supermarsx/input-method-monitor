@@ -6,13 +6,21 @@
 #include "log.h"
 #include "utils.h"
 
+#ifndef ARRAYSIZE
+#define ARRAYSIZE(A) (sizeof(A) / sizeof((A)[0]))
+#endif
+
+#ifndef UNIT_TEST
 // Global state defined elsewhere
 extern Configuration g_config;
+#endif
+
+BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA) = ::Shell_NotifyIcon;
 
 // Static tray icon data
 static NOTIFYICONDATA nid;
 
-void AddTrayIcon(HWND hwnd) {
+TrayIcon::TrayIcon(HWND hwnd) {
     if (!g_trayIconEnabled.load()) return;
 
     ZeroMemory(&nid, sizeof(nid));
@@ -23,15 +31,17 @@ void AddTrayIcon(HWND hwnd) {
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
     wcscpy_s(nid.szTip, ARRAYSIZE(nid.szTip), L"kbdlayoutmon");
-    Shell_NotifyIcon(NIM_ADD, &nid);
+    pShell_NotifyIcon(NIM_ADD, &nid);
+    added_ = true;
 }
 
-void RemoveTrayIcon() {
-    if (g_trayIconEnabled.load()) {
-        Shell_NotifyIcon(NIM_DELETE, &nid);
+TrayIcon::~TrayIcon() {
+    if (added_) {
+        pShell_NotifyIcon(NIM_DELETE, &nid);
     }
 }
 
+#ifndef UNIT_TEST
 void ShowTrayMenu(HWND hwnd) {
     if (!g_trayIconEnabled.load()) return;
 
@@ -135,3 +145,4 @@ void HandleTrayCommand(HWND hwnd, WPARAM wParam) {
             break;
     }
 }
+#endif // UNIT_TEST

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cwchar>
+#include <cstring>
 
 using HANDLE = void*;
 using HINSTANCE = void*;
@@ -40,6 +41,16 @@ using LPBYTE = BYTE*;
 #define GENERIC_WRITE 0x40000000
 #define OPEN_EXISTING 3
 #define FILE_ATTRIBUTE_NORMAL 0x80
+#define WM_USER 0x0400
+#define NIF_MESSAGE 0x00000001
+#define NIF_ICON 0x00000002
+#define NIF_TIP 0x00000004
+#define NIM_ADD 0x00000000
+#define NIM_DELETE 0x00000002
+#ifndef ARRAYSIZE
+#define ARRAYSIZE(A) (sizeof(A) / sizeof((A)[0]))
+#endif
+#define HWND_MESSAGE ((HWND)-3)
 #define HKEY_CURRENT_USER ((HKEY)1)
 #define HKEY_USERS ((HKEY)2)
 #define LOWORD(l) ((LANGID)((uintptr_t)(l) & 0xFFFF))
@@ -68,6 +79,26 @@ extern "C" {
     extern DWORD (*pWaitForMultipleObjects)(DWORD, const HANDLE*, BOOL, DWORD);
     extern DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD);
 }
+
+struct NOTIFYICONDATA {
+    DWORD cbSize;
+    HWND hWnd;
+    UINT uID;
+    UINT uFlags;
+    UINT uCallbackMessage;
+    HANDLE hIcon;
+    wchar_t szTip[64];
+};
+
+using PNOTIFYICONDATA = NOTIFYICONDATA*;
+
+inline BOOL Shell_NotifyIcon(DWORD, NOTIFYICONDATA*) { return TRUE; }
+#define ZeroMemory(ptr, size) std::memset(ptr, 0, size)
+#ifndef MAKEINTRESOURCE
+#define MAKEINTRESOURCE(i) ((LPCWSTR)(uintptr_t)((uint16_t)(i)))
+#endif
+inline HANDLE LoadIcon(HINSTANCE, LPCWSTR) { return nullptr; }
+inline int wcscpy_s(wchar_t* dst, size_t, const wchar_t* src) { std::wcscpy(dst, src); return 0; }
 
 inline HANDLE CreateEventW(void* a, BOOL b, BOOL c, LPCWSTR d) { return pCreateEventW(a,b,c,d); }
 inline BOOL SetEvent(HANDLE h) { return pSetEvent(h); }

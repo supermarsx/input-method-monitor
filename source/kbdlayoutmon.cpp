@@ -7,6 +7,7 @@
 #include <sstream>
 #include <shellapi.h>
 #include <vector>
+#include <memory>
 #include "configuration.h"
 #include "constants.h"
 #include "log.h"
@@ -48,6 +49,7 @@ std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug log
 std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray icon
 bool g_cliMode = false;                     // Suppress GUI/tray behavior
 HWND g_hwnd = NULL;                // Handle to our message window
+std::unique_ptr<TrayIcon> g_trayIcon;
 // Retrieve version information from the executable's version resource
 std::wstring GetVersionString() {
     wchar_t path[MAX_PATH] = {0};
@@ -113,15 +115,15 @@ void ApplyConfig(HWND hwnd) {
     if (trayVal)
         tray = *trayVal != L"0";
     if (tray != g_trayIconEnabled.load()) {
+        g_trayIconEnabled.store(tray);
         if (tray) {
-            g_trayIconEnabled.store(true);
             if (hwnd)
-                AddTrayIcon(hwnd);
+                g_trayIcon = std::make_unique<TrayIcon>(hwnd);
         } else {
-            if (hwnd)
-                RemoveTrayIcon();
-            g_trayIconEnabled.store(false);
+            g_trayIcon.reset();
         }
+    } else if (tray && hwnd && !g_trayIcon) {
+        g_trayIcon = std::make_unique<TrayIcon>(hwnd);
     }
 
     auto timeoutVal = g_config.get(L"temp_hotkey_timeout");
@@ -148,7 +150,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             ShowTrayMenu(hwnd);
             break;
         case WM_DESTROY:
-            RemoveTrayIcon();
             PostQuitMessage(0);
             return 0;
     }
@@ -348,8 +349,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     g_hwnd = hwnd;
 
-    // Add the tray icon
-    AddTrayIcon(hwnd);
+    // Initialize tray icon based on current configuration
+    ApplyConfig(hwnd);
 
     MSG msg;
     {

@@ -24,7 +24,19 @@ enum TrayMenuId {
     ID_TRAY_OPEN_CONFIG = 1010
 };
 
-void AddTrayIcon(HWND hwnd);
-void RemoveTrayIcon();
+class TrayIcon {
+public:
+    explicit TrayIcon(HWND hwnd);
+    ~TrayIcon();
+
+    TrayIcon(const TrayIcon&) = delete;
+    TrayIcon& operator=(const TrayIcon&) = delete;
+
+private:
+    bool added_ = false;
+};
+
+extern BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA);
+
 void ShowTrayMenu(HWND hwnd);
 void HandleTrayCommand(HWND hwnd, WPARAM wParam);
