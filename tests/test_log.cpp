@@ -127,3 +127,45 @@ TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
     REQUIRE(log.queueSize() == 3);
     REQUIRE(log.peekOldest() == L"three");
 }
+
+#ifdef _WIN32
+TEST_CASE("Pipe listener handles messages larger than buffer", "[log][pipe]") {
+    g_debugEnabled.store(true);
+    using namespace std::chrono_literals;
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "immon_pipe_log_test";
+    fs::create_directories(dir);
+
+    fs::path logPath = dir / "pipe.log";
+    g_config.set(L"log_path", logPath.wstring());
+
+    Log log; // starts pipe listener
+    std::this_thread::sleep_for(50ms);
+
+    // Create a message larger than the default pipe buffer (1024 wchar_t)
+    std::wstring big(1500, L'x');
+
+    const wchar_t* pipeName = L"\\.\\pipe\\kbdlayoutmon_log";
+    HANDLE hPipe = INVALID_HANDLE_VALUE;
+    // Try to connect to the pipe until the listener is ready
+    for (int i = 0; i < 50 && hPipe == INVALID_HANDLE_VALUE; ++i) {
+        hPipe = CreateFileW(pipeName, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+        if (hPipe == INVALID_HANDLE_VALUE)
+            std::this_thread::sleep_for(50ms);
+    }
+    REQUIRE(hPipe != INVALID_HANDLE_VALUE);
+
+    DWORD written = 0;
+    WriteFile(hPipe, big.c_str(), static_cast<DWORD>(big.size() * sizeof(wchar_t)), &written, NULL);
+    CloseHandle(hPipe);
+
+    std::this_thread::sleep_for(200ms);
+    log.shutdown();
+
+    std::wifstream f(logPath);
+    std::wstring content((std::istreambuf_iterator<wchar_t>(f)), std::istreambuf_iterator<wchar_t>());
+    REQUIRE(content.find(big) != std::wstring::npos);
+
+    fs::remove_all(dir);
+}
+#endif
