@@ -32,6 +32,7 @@ using HCURSOR = HANDLE;
 using HBRUSH = HANDLE;
 using LPSTR = char*;
 using LPWSTR = wchar_t*;
+using WCHAR = wchar_t;
 
 typedef LRESULT (*WNDPROC)(HWND, UINT, WPARAM, LPARAM);
 
@@ -57,12 +58,46 @@ struct MSG {
     LONG pt;
 };
 
+using ULONG_PTR = uintptr_t;
+
+struct OVERLAPPED {
+    ULONG_PTR Internal;
+    ULONG_PTR InternalHigh;
+    union {
+        struct {
+            DWORD Offset;
+            DWORD OffsetHigh;
+        };
+        void* Pointer;
+    };
+    HANDLE hEvent;
+};
+
+struct FILE_NOTIFY_INFORMATION {
+    DWORD NextEntryOffset;
+    DWORD Action;
+    DWORD FileNameLength;
+    WCHAR FileName[1];
+};
+
 #define TRUE 1
 #define FALSE 0
 #define WAIT_OBJECT_0 0
 #define INFINITE 0xFFFFFFFF
 #define MAX_PATH 260
 #define FILE_NOTIFY_CHANGE_LAST_WRITE 0x00000010
+#define FILE_NOTIFY_CHANGE_FILE_NAME 0x00000001
+#define FILE_LIST_DIRECTORY 0x0001
+#define FILE_SHARE_READ 0x00000001
+#define FILE_SHARE_WRITE 0x00000002
+#define FILE_SHARE_DELETE 0x00000004
+#define FILE_FLAG_BACKUP_SEMANTICS 0x02000000
+#define FILE_FLAG_OVERLAPPED 0x40000000
+#define FILE_ACTION_ADDED 0x00000001
+#define FILE_ACTION_REMOVED 0x00000002
+#define FILE_ACTION_MODIFIED 0x00000003
+#define FILE_ACTION_RENAMED_OLD_NAME 0x00000004
+#define FILE_ACTION_RENAMED_NEW_NAME 0x00000005
 #define INVALID_HANDLE_VALUE ((HANDLE)(intptr_t)(-1))
 #define HSHELL_LANGUAGE 0x0001
 #define WH_SHELL 10
@@ -108,9 +143,10 @@ struct MSG {
 extern "C" {
     extern HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR);
     extern BOOL (*pSetEvent)(HANDLE);
-    extern HANDLE (*pFindFirstChangeNotificationW)(LPCWSTR, BOOL, DWORD);
-    extern BOOL (*pFindNextChangeNotification)(HANDLE);
-    extern BOOL (*pFindCloseChangeNotification)(HANDLE);
+    extern HANDLE (*pCreateFileW)(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE);
+    extern BOOL (*pReadDirectoryChangesW)(HANDLE, void*, DWORD, BOOL, DWORD, DWORD*, OVERLAPPED*, void*);
+    extern BOOL (*pCancelIoEx)(HANDLE, OVERLAPPED*);
+    extern BOOL (*pGetOverlappedResult)(HANDLE, OVERLAPPED*, DWORD*, BOOL);
     extern DWORD (*pWaitForMultipleObjects)(DWORD, const HANDLE*, BOOL, DWORD);
     extern DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD);
 
@@ -154,13 +190,13 @@ inline int wcscpy_s(wchar_t* dst, size_t, const wchar_t* src) { std::wcscpy(dst,
 
 inline HANDLE CreateEventW(void* a, BOOL b, BOOL c, LPCWSTR d) { return pCreateEventW(a,b,c,d); }
 inline BOOL SetEvent(HANDLE h) { return pSetEvent(h); }
-inline HANDLE FindFirstChangeNotificationW(LPCWSTR a, BOOL b, DWORD c) { return pFindFirstChangeNotificationW(a,b,c); }
-inline BOOL FindNextChangeNotification(HANDLE h) { return pFindNextChangeNotification(h); }
-inline BOOL FindCloseChangeNotification(HANDLE h) { return pFindCloseChangeNotification(h); }
+inline HANDLE CreateFileW(LPCWSTR a, DWORD b, DWORD c, void* d, DWORD e, DWORD f, HANDLE g) { return pCreateFileW(a,b,c,d,e,f,g); }
+inline BOOL ReadDirectoryChangesW(HANDLE a, void* b, DWORD c, BOOL d, DWORD e, DWORD* f, OVERLAPPED* g, void* h) { return pReadDirectoryChangesW(a,b,c,d,e,f,g,h); }
+inline BOOL CancelIoEx(HANDLE a, OVERLAPPED* b) { return pCancelIoEx(a,b); }
+inline BOOL GetOverlappedResult(HANDLE a, OVERLAPPED* b, DWORD* c, BOOL d) { return pGetOverlappedResult(a,b,c,d); }
 inline DWORD WaitForMultipleObjects(DWORD a, const HANDLE* b, BOOL c, DWORD d) { return pWaitForMultipleObjects(a,b,c,d); }
 inline DWORD GetModuleFileNameW(HINSTANCE inst, wchar_t* buffer, DWORD size) { return pGetModuleFileNameW(inst, buffer, size); }
 inline void CloseHandle(HANDLE) {}
-inline HANDLE CreateFileW(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) { return nullptr; }
 inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
 inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD, HKEY*) { return ERROR_SUCCESS; }
 extern LONG g_RegSetValueExResult;
