@@ -18,6 +18,7 @@ inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); 
 #include <iostream>
 #include <utility>
 #include <atomic>
+#include <vector>
 #include "configuration.h"
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
@@ -329,11 +330,21 @@ void Log::pipeListener() {
         if (wait == WAIT_OBJECT_0 + 1) {
             break;
         } else if (wait == WAIT_OBJECT_0) {
-            wchar_t buffer[1024];
+            std::wstring message;
+            std::vector<wchar_t> buffer(1024);
             DWORD bytesRead = 0;
-            while (ReadFile(pipe.get(), buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL) && bytesRead > 0) {
-                buffer[bytesRead / sizeof(wchar_t)] = L'\0';
-                write(buffer);
+            BOOL success = FALSE;
+            do {
+                success = ReadFile(pipe.get(), buffer.data(),
+                                   static_cast<DWORD>(buffer.size() * sizeof(wchar_t)),
+                                   &bytesRead, NULL);
+                if (bytesRead > 0) {
+                    message.append(buffer.data(), bytesRead / sizeof(wchar_t));
+                }
+            } while (!success && GetLastError() == ERROR_MORE_DATA);
+
+            if (success && !message.empty()) {
+                write(message);
             }
         }
 
