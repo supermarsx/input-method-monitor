@@ -118,19 +118,30 @@ static void ToggleHotKey(HWND hwnd, const wchar_t* valueName,
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
                                KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
+        bool previous = enabledFlag.load();
+        bool desired;
         const wchar_t* value;
         if (overrideState) {
+            desired = state;
             value = state ? onValue : offValue;
-            enabledFlag.store(state);
         } else {
-            bool cur = enabledFlag.load();
-            value = cur ? offValue : onValue;
-            enabledFlag.store(!cur);
+            desired = !previous;
+            value = desired ? onValue : offValue;
         }
 
-        RegSetValueEx(hKey.get(), valueName, 0, REG_SZ,
-                      reinterpret_cast<const BYTE*>(value),
-                      (lstrlen(value) + 1) * sizeof(wchar_t));
+        result = RegSetValueEx(hKey.get(), valueName, 0, REG_SZ,
+                               reinterpret_cast<const BYTE*>(value),
+                               (lstrlen(value) + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            std::wstringstream ss;
+            ss << L"Failed to set registry value for " << valueName
+               << L". Error: " << result;
+            WriteLog(ss.str().c_str());
+            enabledFlag.store(previous);
+            return;
+        }
+
+        enabledFlag.store(desired);
 
         if (updateFunc)
             updateFunc(enabledFlag.load());
@@ -157,17 +168,33 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         return; // Avoid repeated enabling
     }
 
-    g_tempHotKeysEnabled.store(true);
-
     WinRegHandle hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
                                KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
-        RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ, reinterpret_cast<const BYTE*>(L"1"),
-                      (lstrlen(L"1") + 1) * sizeof(wchar_t));
-        RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ, reinterpret_cast<const BYTE*>(L"2"),
-                      (lstrlen(L"2") + 1) * sizeof(wchar_t));
+        result = RegSetValueEx(hKey.get(), L"Language HotKey", 0, REG_SZ,
+                               reinterpret_cast<const BYTE*>(L"1"),
+                               (lstrlen(L"1") + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            std::wstringstream ss;
+            ss << L"Failed to set Language HotKey. Error: " << result;
+            WriteLog(ss.str().c_str());
+            return;
+        }
+
+        result = RegSetValueEx(hKey.get(), L"Layout HotKey", 0, REG_SZ,
+                                reinterpret_cast<const BYTE*>(L"2"),
+                                (lstrlen(L"2") + 1) * sizeof(wchar_t));
+        if (result != ERROR_SUCCESS) {
+            std::wstringstream ss;
+            ss << L"Failed to set Layout HotKey. Error: " << result;
+            WriteLog(ss.str().c_str());
+            return;
+        }
+
         WriteLog(L"Temporarily enabled hotkeys.");
+
+        g_tempHotKeysEnabled.store(true);
 
         // Update the global status
         g_languageHotKeyEnabled.store(true);

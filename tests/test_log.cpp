@@ -11,7 +11,7 @@ using HINSTANCE = void*;
 #endif
 
 extern HINSTANCE g_hInst;
-std::atomic<bool> g_debugEnabled{false};
+extern std::atomic<bool> g_debugEnabled;
 
 TEST_CASE("Log switches files when path changes", "[log]") {
     g_debugEnabled.store(true);
