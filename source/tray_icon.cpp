@@ -126,7 +126,7 @@ void HandleTrayCommand(HWND hwnd, WPARAM wParam) {
         }
         case ID_TRAY_TOGGLE_DEBUG:
             if (g_debugEnabled.load()) {
-                WriteLog(L"Debug logging disabled.");
+                WriteLog(LogLevel::Info, L"Debug logging disabled.");
                 g_debugEnabled.store(false);
                 if (SetDebugLoggingEnabled)
                     SetDebugLoggingEnabled(false);
@@ -134,7 +134,7 @@ void HandleTrayCommand(HWND hwnd, WPARAM wParam) {
                 g_debugEnabled.store(true);
                 if (SetDebugLoggingEnabled)
                     SetDebugLoggingEnabled(true);
-                WriteLog(L"Debug logging enabled.");
+                WriteLog(LogLevel::Info, L"Debug logging enabled.");
             }
             break;
         case ID_TRAY_RESTART:

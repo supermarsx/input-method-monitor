@@ -11,7 +11,7 @@ using HINSTANCE = void*;
 #endif
 
 extern HINSTANCE g_hInst;
-extern std::atomic<bool> g_debugEnabled;
+std::atomic<bool> g_debugEnabled{false};
 
 TEST_CASE("Log switches files when path changes", "[log]") {
     g_debugEnabled.store(true);
@@ -26,11 +26,11 @@ TEST_CASE("Log switches files when path changes", "[log]") {
     g_config.set(L"log_path", first.wstring());
     Log log;
 
-    log.write(L"one");
+    log.write(LogLevel::Info, L"one");
     std::this_thread::sleep_for(200ms);
 
     g_config.set(L"log_path", second.wstring());
-    log.write(L"two");
+    log.write(LogLevel::Info, L"two");
     std::this_thread::sleep_for(200ms);
 
     log.shutdown();
@@ -63,11 +63,11 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
 
     // Write a large entry to exceed the configured size (1 MB)
     std::wstring big(1024 * 1024, L'a');
-    log.write(big);
+    log.write(LogLevel::Info, big);
     std::this_thread::sleep_for(200ms);
 
     // Next write should trigger rotation before it is written
-    log.write(L"second entry");
+    log.write(LogLevel::Info, L"second entry");
     std::this_thread::sleep_for(200ms);
 
     log.shutdown();
@@ -95,10 +95,10 @@ TEST_CASE("Log reports error when rotation rename fails", "[log]") {
     Log log;
 
     std::wstring big(1024 * 1024, L'a');
-    log.write(big);
+    log.write(LogLevel::Info, big);
     std::this_thread::sleep_for(200ms);
 
-    log.write(L"after");
+    log.write(LogLevel::Info, L"after");
     std::this_thread::sleep_for(200ms);
 
     log.shutdown();
@@ -114,15 +114,31 @@ TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 #endif
 }
 
+TEST_CASE("LogLevel setting filters messages", "[log]") {
+    g_debugEnabled.store(true);
+
+    Log log(10, false); // no threads
+    g_config.set(L"log_level", L"warning");
+    log.write(LogLevel::Info, L"info");
+    log.write(LogLevel::Error, L"error");
+
+    REQUIRE(log.queueSize() == 1);
+    REQUIRE(log.peekOldest() == L"error");
+
+    g_config.set(L"log_level", L"debug");
+    log.write(LogLevel::Info, L"info2");
+    REQUIRE(log.queueSize() == 2);
+}
+
 TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
     g_debugEnabled.store(true);
 
     Log log(3, false); // small queue, do not start threads
-    log.write(L"one");
-    log.write(L"two");
-    log.write(L"three");
-    log.write(L"four");
-    log.write(L"five");
+    log.write(LogLevel::Info, L"one");
+    log.write(LogLevel::Info, L"two");
+    log.write(LogLevel::Info, L"three");
+    log.write(LogLevel::Info, L"four");
+    log.write(LogLevel::Info, L"five");
 
     REQUIRE(log.queueSize() == 3);
     REQUIRE(log.peekOldest() == L"three");

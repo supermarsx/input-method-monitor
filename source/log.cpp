@@ -18,6 +18,8 @@ inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); 
 #include <iostream>
 #include <utility>
 #include <atomic>
+#include <algorithm>
+#include <cwctype>
 #include "configuration.h"
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
@@ -56,8 +58,8 @@ extern "C" void SetDebugLoggingEnabled(bool enabled) {
     g_debugEnabled.store(enabled);
 }
 
-extern "C" void WriteLog(const wchar_t* message) {
-    g_log.write(message);
+extern "C" void WriteLog(LogLevel level, const wchar_t* message) {
+    g_log.write(level, message);
     if (g_verboseLogging) {
 #ifdef _WIN32
         OutputDebugStringW(message);
@@ -111,9 +113,28 @@ void Log::shutdown() {
 #endif
 }
 
-void Log::write(const std::wstring& message) {
+namespace {
+LogLevel ParseLevel(const std::wstring& lvl) {
+    std::wstring lower = lvl;
+    std::transform(lower.begin(), lower.end(), lower.begin(), towlower);
+    if (lower == L"error") return LogLevel::Error;
+    if (lower == L"warning") return LogLevel::Warning;
+    if (lower == L"info") return LogLevel::Info;
+    return LogLevel::Debug;
+}
+}
+
+void Log::write(LogLevel level, const std::wstring& message) {
     if (!g_debugEnabled.load())
         return;
+
+    LogLevel threshold = LogLevel::Debug;
+    if (auto val = g_config.get(L"log_level")) {
+        threshold = ParseLevel(*val);
+    }
+    if (static_cast<int>(level) < static_cast<int>(threshold))
+        return;
+
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_queue.size() >= m_maxQueueSize) {
@@ -162,7 +183,7 @@ void Log::process() {
     auto logError = [this](const wchar_t* msg) {
         ++m_suppress;
         bool prev = g_debugEnabled.exchange(true);
-        this->write(msg);
+        this->write(LogLevel::Error, msg);
         g_debugEnabled.store(prev);
     };
     for (;;) {
@@ -333,7 +354,10 @@ void Log::pipeListener() {
             DWORD bytesRead = 0;
             while (ReadFile(pipe.get(), buffer, sizeof(buffer) - sizeof(wchar_t), &bytesRead, NULL) && bytesRead > 0) {
                 buffer[bytesRead / sizeof(wchar_t)] = L'\0';
-                write(buffer);
+                if (bytesRead / sizeof(wchar_t) > 1) {
+                    LogLevel lvl = static_cast<LogLevel>(buffer[0]);
+                    this->write(lvl, buffer + 1);
+                }
             }
         }
 

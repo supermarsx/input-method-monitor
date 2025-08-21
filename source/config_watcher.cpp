@@ -17,7 +17,7 @@ ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
     try {
         m_thread = std::thread(&ConfigWatcher::threadProc, this);
     } catch (const std::system_error&) {
-        WriteLog(L"Failed to create watcher thread.");
+        WriteLog(LogLevel::Error, L"Failed to create watcher thread.");
         throw;
     }
 }
@@ -53,10 +53,10 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
         if (wait == WAIT_OBJECT_0) {
             g_config.load();
             ApplyConfig(self->m_hwnd);
-            WriteLog(L"Configuration reloaded.");
+            WriteLog(LogLevel::Info, L"Configuration reloaded.");
             BOOL ok = FindNextChangeNotification(hChange.get());
             if (!ok) {
-                WriteLog(L"FindNextChangeNotification failed.");
+                WriteLog(LogLevel::Error, L"FindNextChangeNotification failed.");
                 break;
             }
         } else if (wait == WAIT_OBJECT_0 + 1) {

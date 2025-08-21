@@ -16,6 +16,16 @@ using HANDLE = void*;
 #endif
 
 /**
+ * @brief Severity levels for log messages.
+ */
+enum class LogLevel {
+    Error   = 3,
+    Warning = 2,
+    Info    = 1,
+    Debug   = 0
+};
+
+/**
  * @brief Threaded log writer used by the application and hook DLL.
  */
 class Log {
@@ -41,10 +51,11 @@ public:
      * entries, the oldest message is dropped to make room for the new
      * one.
      *
+     * @param level Severity of the message.
      * @param message Text to append to the log file.
      * @sideeffects Signals the worker thread to write the entry.
      */
-    void write(const std::wstring& message);
+    void write(LogLevel level, const std::wstring& message);
 
     /// Adjust the maximum number of queued messages.
     void setMaxQueueSize(size_t maxSize);
@@ -83,12 +94,13 @@ extern Log g_log;
 
 /**
  * @brief Write a message to the shared log.
+ * @param level Severity of the message.
  * @param message Null‑terminated string to append.
  */
 #ifdef _WIN32
-extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message);
+extern "C" __declspec(dllexport) void WriteLog(LogLevel level, const wchar_t* message);
 #else
-extern "C" void WriteLog(const wchar_t* message);
+extern "C" void WriteLog(LogLevel level, const wchar_t* message);
 #endif
 
 /**
