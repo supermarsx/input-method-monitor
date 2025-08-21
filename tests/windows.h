@@ -111,8 +111,9 @@ inline void CloseHandle(HANDLE) {}
 inline HANDLE CreateFileW(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) { return nullptr; }
 inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
 inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD, HKEY*) { return ERROR_SUCCESS; }
-inline LONG RegSetValueEx(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return ERROR_SUCCESS; }
-inline LONG RegSetValueExW(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return ERROR_SUCCESS; }
+extern LONG g_RegSetValueExResult;
+inline LONG RegSetValueEx(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return g_RegSetValueExResult; }
+inline LONG RegSetValueExW(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return g_RegSetValueExResult; }
 inline LONG RegQueryValueEx(HKEY, LPCWSTR valueName, DWORD, DWORD*, BYTE* data, DWORD* len) {
     if (valueName && data && len && *len >= sizeof(wchar_t) * 2) {
         auto wdata = reinterpret_cast<wchar_t*>(data);
