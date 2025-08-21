@@ -17,27 +17,24 @@ extern Configuration g_config;
 
 BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA) = ::Shell_NotifyIcon;
 
-// Static tray icon data
-static NOTIFYICONDATA nid;
-
 TrayIcon::TrayIcon(HWND hwnd) {
     if (!g_trayIconEnabled.load()) return;
 
-    ZeroMemory(&nid, sizeof(nid));
-    nid.cbSize = sizeof(NOTIFYICONDATA);
-    nid.hWnd = hwnd;
-    nid.uID = 1;
-    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    nid.uCallbackMessage = WM_TRAYICON;
-    nid.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
-    wcscpy_s(nid.szTip, ARRAYSIZE(nid.szTip), L"kbdlayoutmon");
-    pShell_NotifyIcon(NIM_ADD, &nid);
+    ZeroMemory(&nid_, sizeof(nid_));
+    nid_.cbSize = sizeof(NOTIFYICONDATA);
+    nid_.hWnd = hwnd;
+    nid_.uID = 1;
+    nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nid_.uCallbackMessage = WM_TRAYICON;
+    nid_.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
+    wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), L"kbdlayoutmon");
+    pShell_NotifyIcon(NIM_ADD, &nid_);
     added_ = true;
 }
 
 TrayIcon::~TrayIcon() {
     if (added_) {
-        pShell_NotifyIcon(NIM_DELETE, &nid);
+        pShell_NotifyIcon(NIM_DELETE, &nid_);
     }
 }
 

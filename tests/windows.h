@@ -9,6 +9,7 @@ using HWND = void*;
 using HKL = void*;
 using HHOOK = void*;
 using HKEY = void*;
+using HMODULE = void*;
 using DWORD = unsigned long;
 using BOOL = int;
 using LPCWSTR = const wchar_t*;
@@ -23,6 +24,38 @@ using HOOKPROC = LRESULT(*)(int, WPARAM, LPARAM);
 using TIMERPROC = void(*)(HWND, UINT, UINT, DWORD);
 using LPVOID = void*;
 using LPBYTE = BYTE*;
+using FARPROC = void*;
+
+using ATOM = unsigned short;
+using HICON = HANDLE;
+using HCURSOR = HANDLE;
+using HBRUSH = HANDLE;
+using LPSTR = char*;
+using LPWSTR = wchar_t*;
+
+typedef LRESULT (*WNDPROC)(HWND, UINT, WPARAM, LPARAM);
+
+struct WNDCLASS {
+    UINT style;
+    WNDPROC lpfnWndProc;
+    int cbClsExtra;
+    int cbWndExtra;
+    HINSTANCE hInstance;
+    HICON hIcon;
+    HCURSOR hCursor;
+    HBRUSH hbrBackground;
+    LPCWSTR lpszMenuName;
+    LPCWSTR lpszClassName;
+};
+
+struct MSG {
+    HWND hwnd;
+    UINT message;
+    WPARAM wParam;
+    LPARAM lParam;
+    DWORD time;
+    LONG pt;
+};
 
 #define TRUE 1
 #define FALSE 0
@@ -70,6 +103,8 @@ using LPBYTE = BYTE*;
 #define APIENTRY
 #endif
 
+#define CW_USEDEFAULT 0
+
 extern "C" {
     extern HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR);
     extern BOOL (*pSetEvent)(HANDLE);
@@ -78,6 +113,23 @@ extern "C" {
     extern BOOL (*pFindCloseChangeNotification)(HANDLE);
     extern DWORD (*pWaitForMultipleObjects)(DWORD, const HANDLE*, BOOL, DWORD);
     extern DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD);
+
+    ATOM RegisterClass(const WNDCLASS*);
+    HWND CreateWindowEx(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HANDLE, HINSTANCE, LPVOID);
+    LRESULT DefWindowProc(HWND, UINT, WPARAM, LPARAM);
+    BOOL DestroyWindow(HWND);
+    void PostQuitMessage(int);
+    LPWSTR* CommandLineToArgvW(LPCWSTR, int*);
+    void LocalFree(void*);
+    BOOL GetMessage(MSG*, HWND, UINT, UINT);
+    BOOL TranslateMessage(const MSG*);
+    LRESULT DispatchMessage(const MSG*);
+    HMODULE LoadLibrary(LPCWSTR);
+    FARPROC GetProcAddress(HMODULE, const char*);
+    BOOL FreeLibrary(HMODULE);
+    int MessageBox(HWND, LPCWSTR, LPCWSTR, UINT);
+    BOOL AttachConsole(DWORD);
+    BOOL FreeConsole(void);
 }
 
 struct NOTIFYICONDATA {

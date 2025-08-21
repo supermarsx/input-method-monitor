@@ -349,6 +349,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     g_hwnd = hwnd;
 
+    // Ensure tray icon is cleaned up on any exit path
+    struct TrayIconGuard {
+        ~TrayIconGuard() { g_trayIcon.reset(); }
+    } trayGuard;
+
     // Initialize tray icon based on current configuration
     ApplyConfig(hwnd);
 

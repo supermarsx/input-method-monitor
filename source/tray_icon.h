@@ -33,6 +33,7 @@ public:
     TrayIcon& operator=(const TrayIcon&) = delete;
 
 private:
+    NOTIFYICONDATA nid_{};
     bool added_ = false;
 };
 

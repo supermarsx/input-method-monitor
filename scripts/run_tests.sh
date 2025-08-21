@@ -8,7 +8,7 @@ if ! echo '#include <catch2/catch_test_macros.hpp>' | g++ -std=c++17 -x c++ - -f
 fi
 
 g++ -std=c++17 -DUNIT_TEST -I tests -I resources \
-    tests/test_configuration.cpp tests/test_log.cpp tests/test_utils.cpp tests/test_timer_guard.cpp tests/test_tray_icon.cpp \
+    tests/test_configuration.cpp tests/test_log.cpp tests/test_utils.cpp tests/test_timer_guard.cpp tests/test_tray_icon.cpp tests/test_tray_icon_integration.cpp \
     source/configuration.cpp source/log.cpp source/config_parser.cpp source/tray_icon.cpp -o tests/run_tests \
     -lCatch2Main -lCatch2 -pthread
 ./tests/run_tests
