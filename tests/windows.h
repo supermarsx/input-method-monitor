@@ -83,6 +83,7 @@ struct FILE_NOTIFY_INFORMATION {
 #define TRUE 1
 #define FALSE 0
 #define WAIT_OBJECT_0 0
+#define WAIT_TIMEOUT 258
 #define INFINITE 0xFFFFFFFF
 #define MAX_PATH 260
 #define FILE_NOTIFY_CHANGE_LAST_WRITE 0x00000010
@@ -224,7 +225,8 @@ inline LRESULT CallNextHookEx(HHOOK, int, WPARAM, LPARAM) { return 0; }
 inline BOOL UnhookWindowsHookEx(HHOOK) { return TRUE; }
 inline DWORD GetLastError() { return 0; }
 inline HANDLE CreateMutex(void*, BOOL, LPCWSTR) { return nullptr; }
-inline DWORD WaitForSingleObject(HANDLE, DWORD) { return WAIT_OBJECT_0; }
+extern DWORD (*pWaitForSingleObject)(HANDLE, DWORD);
+inline DWORD WaitForSingleObject(HANDLE a, DWORD b) { return pWaitForSingleObject(a, b); }
 inline BOOL ReleaseMutex(HANDLE) { return TRUE; }
 inline void DisableThreadLibraryCalls(HINSTANCE) {}
 extern UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC);
@@ -232,3 +234,4 @@ extern BOOL (*pKillTimer)(HWND, UINT);
 inline UINT SetTimer(HWND a, UINT b, UINT c, TIMERPROC d) { return pSetTimer(a, b, c, d); }
 inline BOOL KillTimer(HWND a, UINT b) { return pKillTimer(a, b); }
 inline int lstrlen(const wchar_t* s) { return wcslen(s); }
+inline void Sleep(DWORD) {}

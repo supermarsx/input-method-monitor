@@ -53,6 +53,9 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
 
         if (!hDir) {
             WriteLog(L"CreateFileW failed for configuration directory.");
+            if (WaitForSingleObject(self->m_stopEvent.get(), 0) == WAIT_OBJECT_0)
+                break;
+            Sleep(100);
             continue;
         }
 
