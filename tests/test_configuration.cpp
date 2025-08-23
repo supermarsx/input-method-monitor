@@ -8,6 +8,7 @@
 #include <thread>
 #include <optional>
 #include <limits>
+#include <cstdlib>
 
 
 TEST_CASE("Valid entries are parsed", "[config]") {
@@ -121,6 +122,20 @@ TEST_CASE("Inline comments are stripped", "[config]") {
     REQUIRE(settings[L"key"] == L"value");
     REQUIRE(settings[L"foo"] == L"bar #baz");
     REQUIRE(settings[L"baz"] == L"qux ;quux");
+}
+
+TEST_CASE("Environment variables are expanded", "[config]") {
+#ifdef _WIN32
+    _wputenv_s(L"IMMON_TEST_VAR", L"expanded");
+    std::vector<std::wstring> lines = {L"PATH_VAR=%IMMON_TEST_VAR%"};
+    auto settings = ParseConfigLines(lines);
+    REQUIRE(settings[L"path_var"] == L"expanded");
+#else
+    setenv("IMMON_TEST_VAR", "expanded", 1);
+    std::vector<std::wstring> lines = {L"PATH_VAR=$IMMON_TEST_VAR"};
+    auto settings = ParseConfigLines(lines);
+    REQUIRE(settings[L"path_var"] == L"expanded");
+#endif
 }
 
 TEST_CASE("Reload custom config file", "[config]") {

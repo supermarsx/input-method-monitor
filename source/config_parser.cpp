@@ -2,6 +2,11 @@
 #include <algorithm>
 #include <cwctype>
 #include <stdexcept>
+#include <cstdlib>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace {
 std::wstring ParseUnsignedOrDefault(const std::wstring& value, unsigned long def) {
@@ -14,6 +19,77 @@ std::wstring ParseUnsignedOrDefault(const std::wstring& value, unsigned long def
     } catch (...) {
         return std::to_wstring(def);
     }
+}
+
+std::wstring ExpandEnvVars(const std::wstring& input) {
+#ifdef _WIN32
+    // Use the Windows API to expand %VAR% style references.
+    DWORD needed = ExpandEnvironmentStringsW(input.c_str(), nullptr, 0);
+    if (needed == 0)
+        return input;
+    std::wstring buffer(needed, L'\0');
+    DWORD written = ExpandEnvironmentStringsW(input.c_str(), buffer.data(), needed);
+    if (written == 0)
+        return input;
+    if (!buffer.empty() && buffer.back() == L'\0')
+        buffer.pop_back();
+    return buffer;
+#else
+    // Manual expansion supporting $VAR and ${VAR} as well as %VAR%.
+    std::wstring result;
+    result.reserve(input.size());
+    for (size_t i = 0; i < input.size(); ++i) {
+        wchar_t c = input[i];
+        if (c == L'%') {
+            size_t end = input.find(L'%', i + 1);
+            if (end != std::wstring::npos) {
+                std::wstring name = input.substr(i + 1, end - i - 1);
+                std::string narrow(name.begin(), name.end());
+                const char* val = std::getenv(narrow.c_str());
+                if (val) {
+                    std::string sval(val);
+                    result.append(sval.begin(), sval.end());
+                }
+                i = end;
+                continue;
+            }
+        } else if (c == L'$') {
+            size_t start = i + 1;
+            size_t end = start;
+            bool brace = false;
+            if (start < input.size() && input[start] == L'{') {
+                brace = true;
+                start++;
+                end = start;
+                while (end < input.size() && input[end] != L'}')
+                    ++end;
+                if (end == input.size()) {
+                    // Unmatched '{', treat literally
+                    result.push_back(c);
+                    continue;
+                }
+            } else {
+                while (end < input.size() &&
+                       (std::iswalnum(input[end]) || input[end] == L'_'))
+                    ++end;
+            }
+
+            if (end > start) {
+                std::wstring name = input.substr(start, end - start);
+                std::string narrow(name.begin(), name.end());
+                const char* val = std::getenv(narrow.c_str());
+                if (val) {
+                    std::string sval(val);
+                    result.append(sval.begin(), sval.end());
+                }
+                i = brace ? end : end - 1;
+                continue;
+            }
+        }
+        result.push_back(c);
+    }
+    return result;
+#endif
 }
 } // namespace
 
@@ -92,6 +168,9 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
              (value.front() == L'\'' && value.back() == L'\''))) {
             value = value.substr(1, value.size() - 2);
         }
+
+        // Expand environment variables such as %VAR% or $VAR
+        value = ExpandEnvVars(value);
 
         std::transform(key.begin(), key.end(), key.begin(), [](wchar_t c) {
             return std::towlower(c);

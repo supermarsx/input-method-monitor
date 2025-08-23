@@ -32,6 +32,14 @@ ICON_PATH=path\to\icon.ico # Optional custom tray icon
 TRAY_TOOLTIP=Some text # Custom tray icon tooltip (default "kbdlayoutmon")
 ```
 
+Values may reference environment variables. Use `%VAR%` on Windows or `$VAR` on
+POSIX systems. For example:
+
+```
+LOG_PATH=%TEMP%\kbdlayoutmon.log      # Windows
+LOG_PATH=$HOME/kbdlayoutmon.log       # POSIX
+```
+
 Lines that begin with `#` or `;` (after trimming whitespace) are treated as comments and ignored.
 
 Changes to `kbdlayoutmon.config` are picked up automatically while the program is running.
