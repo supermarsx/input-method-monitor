@@ -234,4 +234,5 @@ extern BOOL (*pKillTimer)(HWND, UINT);
 inline UINT SetTimer(HWND a, UINT b, UINT c, TIMERPROC d) { return pSetTimer(a, b, c, d); }
 inline BOOL KillTimer(HWND a, UINT b) { return pKillTimer(a, b); }
 inline int lstrlen(const wchar_t* s) { return wcslen(s); }
-inline void Sleep(DWORD) {}
+extern int g_sleepCalls;
+inline void Sleep(DWORD) { ++g_sleepCalls; }

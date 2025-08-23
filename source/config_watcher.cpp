@@ -43,6 +43,8 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
     }
     PathRemoveFileSpecW(dirPath);
 
+    const DWORD kMaxBackoff = 1000;
+    DWORD backoff = 50;
     // Continuously attempt to monitor the directory until the stop event is signalled.
     for (;;) {
         HandleGuard hDir(CreateFileW(
@@ -55,9 +57,16 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
             WriteLog(L"CreateFileW failed for configuration directory.");
             if (WaitForSingleObject(self->m_stopEvent.get(), 0) == WAIT_OBJECT_0)
                 break;
-            Sleep(100);
+            Sleep(backoff);
+            if (backoff < kMaxBackoff) {
+                backoff *= 2;
+                if (backoff > kMaxBackoff)
+                    backoff = kMaxBackoff;
+            }
             continue;
         }
+
+        backoff = 50;
 
         BYTE buffer[1024];
         OVERLAPPED ov{};

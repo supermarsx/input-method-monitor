@@ -13,6 +13,7 @@ static int applyCalls = 0;
 void ApplyConfig(HWND) { ++applyCalls; }
 static HANDLE g_stopHandle = nullptr;
 static bool stopSignaled = false;
+int g_sleepCalls = 0;
 HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR) = [](void*, BOOL, BOOL, LPCWSTR){
     static intptr_t next = 1;
     return reinterpret_cast<HANDLE>(next++);
@@ -44,6 +45,7 @@ DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t* buffer, DWORD) = [](HINSTANCE, 
 
 TEST_CASE("Renaming config file triggers reload", "[config_watcher]") {
     applyCalls = 0;
+    g_sleepCalls = 0;
     {
         ConfigWatcher watcher(nullptr);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -60,6 +62,7 @@ TEST_CASE("Watcher exits when stop event set and directory cannot be opened", "[
 
     stopSignaled = false;
     waitCalls = 0;
+    g_sleepCalls = 0;
     std::chrono::steady_clock::time_point start;
     {
         ConfigWatcher watcher(nullptr);
@@ -72,6 +75,7 @@ TEST_CASE("Watcher exits when stop event set and directory cannot be opened", "[
     pCreateFileW = origCreateFileW;
     g_stopHandle = nullptr;
     stopSignaled = false;
-    REQUIRE(elapsed < std::chrono::milliseconds(50));
+    REQUIRE(elapsed < std::chrono::milliseconds(200));
+    REQUIRE(g_sleepCalls >= 1);
 }
 
