@@ -46,10 +46,10 @@ void AddToStartup() {
         RegSetValueExW(hKey.get(), L"kbdlayoutmon", 0, REG_SZ,
                        reinterpret_cast<const BYTE*>(quotedPath.c_str()),
                        (quotedPath.size() + 1) * sizeof(wchar_t));
-        WriteLog(L"Added to startup.");
+        WriteLog(LogLevel::Info, L"Added to startup.");
         g_startupEnabled = true;
     } else {
-        WriteLog(L"Failed to add to startup.");
+        WriteLog(LogLevel::Error, L"Failed to add to startup.");
     }
 }
 
@@ -61,10 +61,10 @@ void RemoveFromStartup() {
                                0, KEY_SET_VALUE, hKey.receive());
     if (result == ERROR_SUCCESS) {
         RegDeleteValue(hKey.get(), L"kbdlayoutmon");
-        WriteLog(L"Removed from startup.");
+        WriteLog(LogLevel::Info, L"Removed from startup.");
         g_startupEnabled = false;
     } else {
-        WriteLog(L"Failed to remove from startup.");
+        WriteLog(LogLevel::Error, L"Failed to remove from startup.");
     }
 }
 
@@ -80,10 +80,10 @@ bool IsLanguageHotKeyEnabled() {
                                  (LPBYTE)value, &value_length);
         std::wstringstream ss;
         ss << L"Language HotKey value: " << value;
-        WriteLog(ss.str().c_str());
+        WriteLog(LogLevel::Info, ss.str().c_str());
         return (result == ERROR_SUCCESS && wcscmp(value, L"3") == 0);
     } else {
-        WriteLog(L"Failed to open registry key for Language HotKey.");
+        WriteLog(LogLevel::Error, L"Failed to open registry key for Language HotKey.");
     }
     return false;
 }
@@ -100,10 +100,10 @@ bool IsLayoutHotKeyEnabled() {
                                  (LPBYTE)value, &value_length);
         std::wstringstream ss;
         ss << L"Layout HotKey value: " << value;
-        WriteLog(ss.str().c_str());
+        WriteLog(LogLevel::Info, ss.str().c_str());
         return (result == ERROR_SUCCESS && wcscmp(value, L"3") == 0);
     } else {
-        WriteLog(L"Failed to open registry key for Layout HotKey.");
+        WriteLog(LogLevel::Error, L"Failed to open registry key for Layout HotKey.");
     }
     return false;
 }
@@ -136,7 +136,7 @@ static void ToggleHotKey(HWND hwnd, const wchar_t* valueName,
             std::wstringstream ss;
             ss << L"Failed to set registry value for " << valueName
                << L". Error: " << result;
-            WriteLog(ss.str().c_str());
+            WriteLog(LogLevel::Error, ss.str().c_str());
             enabledFlag.store(previous);
             return;
         }
@@ -161,10 +161,10 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState, bool state) {
 }
 
 void TemporarilyEnableHotKeys(HWND hwnd) {
-    WriteLog(L"TemporarilyEnableHotKeys called.");
+    WriteLog(LogLevel::Info, L"TemporarilyEnableHotKeys called.");
 
     if (g_tempHotKeysEnabled.load()) {
-        WriteLog(L"TemporarilyEnableHotKeys already enabled. Skipping.");
+        WriteLog(LogLevel::Warn, L"TemporarilyEnableHotKeys already enabled. Skipping.");
         return; // Avoid repeated enabling
     }
 
@@ -178,7 +178,7 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         if (result != ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Failed to set Language HotKey. Error: " << result;
-            WriteLog(ss.str().c_str());
+            WriteLog(LogLevel::Error, ss.str().c_str());
             return;
         }
 
@@ -188,11 +188,11 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         if (result != ERROR_SUCCESS) {
             std::wstringstream ss;
             ss << L"Failed to set Layout HotKey. Error: " << result;
-            WriteLog(ss.str().c_str());
+            WriteLog(LogLevel::Error, ss.str().c_str());
             return;
         }
 
-        WriteLog(L"Temporarily enabled hotkeys.");
+        WriteLog(LogLevel::Info, L"Temporarily enabled hotkeys.");
 
         g_tempHotKeysEnabled.store(true);
 
@@ -210,13 +210,13 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
         if (*timer) {
             g_tempHotKeyTimer = std::move(timer);
         } else {
-            WriteLog(L"Failed to set timer for temporarily enabling hotkeys.");
+            WriteLog(LogLevel::Error, L"Failed to set timer for temporarily enabling hotkeys.");
             ToggleLanguageHotKey(hwnd, true, false);
             ToggleLayoutHotKey(hwnd, true, false);
             g_tempHotKeysEnabled.store(false);
         }
     } else {
-        WriteLog(L"Failed to open registry key for temporarily enabling hotkeys.");
+        WriteLog(LogLevel::Error, L"Failed to open registry key for temporarily enabling hotkeys.");
     }
 }
 

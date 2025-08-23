@@ -207,7 +207,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Create a named mutex to ensure a single instance
     g_hInstanceMutex.reset(CreateMutex(NULL, TRUE, L"InputMethodMonitorSingleton"));
     if (g_hInstanceMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
-        WriteLog(L"Another instance is already running.");
+        WriteLog(LogLevel::Error, L"Another instance is already running.");
         if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
             FILE* fp = _wfopen(L"CONOUT$", L"w");
             if (fp) {
@@ -326,7 +326,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         LocalFree(argv);
     }
 
-    WriteLog(L"Executable started.");
+    WriteLog(LogLevel::Info, L"Executable started.");
 
     // Check if the app is set to launch at startup
     g_startupEnabled = IsStartupEnabled();
@@ -348,7 +348,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to register window class. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str());
+        WriteLog(LogLevel::Error, ss.str());
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex.get());
             g_hInstanceMutex.reset();
@@ -373,7 +373,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         DWORD errorCode = GetLastError();
         std::wstringstream ss;
         ss << L"Failed to create message-only window. Error code: 0x" << std::hex << errorCode;
-        WriteLog(ss.str());
+        WriteLog(LogLevel::Error, ss.str());
         if (g_hInstanceMutex) {
             ReleaseMutex(g_hInstanceMutex.get());
             g_hInstanceMutex.reset();
@@ -401,7 +401,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             DWORD errorCode = GetLastError();
             std::wstringstream ss;
             ss << L"Failed to load kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
-            WriteLog(ss.str());
+            WriteLog(LogLevel::Error, ss.str());
             if (g_hInstanceMutex) {
                 ReleaseMutex(g_hInstanceMutex.get());
                 g_hInstanceMutex.reset();
@@ -425,7 +425,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             DWORD errorCode = GetLastError();
             std::wstringstream ss;
             ss << L"Failed to get function addresses from kbdlayoutmonhook.dll. Error code: 0x" << std::hex << errorCode;
-            WriteLog(ss.str());
+            WriteLog(LogLevel::Error, ss.str());
             FreeLibrary(g_hDll);
             if (g_hInstanceMutex) {
                 ReleaseMutex(g_hInstanceMutex.get());
@@ -436,7 +436,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Initialize the hook module now that it's loaded
         if (!InitHookModule()) {
-            WriteLog(L"Failed to initialize hook module.");
+            WriteLog(LogLevel::Error, L"Failed to initialize hook module.");
             CleanupHookModule();
             FreeLibrary(g_hDll);
             if (g_hInstanceMutex) {
@@ -450,7 +450,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     SetDebugLoggingEnabled(g_debugEnabled.load());
 
         if (!InstallGlobalHook()) {
-            WriteLog(L"Failed to install global hook.");
+            WriteLog(LogLevel::Error, L"Failed to install global hook.");
             CleanupHookModule();
             FreeLibrary(g_hDll);
             if (g_hInstanceMutex) {
@@ -477,6 +477,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         ReleaseMutex(g_hInstanceMutex.get());
         g_hInstanceMutex.reset();
     }
-    WriteLog(L"Executable stopped.");
+    WriteLog(LogLevel::Info, L"Executable stopped.");
     return static_cast<int>(msg.wParam);
 }

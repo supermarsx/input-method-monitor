@@ -17,7 +17,7 @@ ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
     try {
         m_thread = std::thread(&ConfigWatcher::threadProc, this);
     } catch (const std::system_error&) {
-        WriteLog(L"Failed to create watcher thread.");
+        WriteLog(LogLevel::Error, L"Failed to create watcher thread.");
         throw;
     }
 }
@@ -54,7 +54,7 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
             FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED, NULL));
 
         if (!hDir) {
-            WriteLog(L"CreateFileW failed for configuration directory.");
+            WriteLog(LogLevel::Error, L"CreateFileW failed for configuration directory.");
             if (WaitForSingleObject(self->m_stopEvent.get(), 0) == WAIT_OBJECT_0)
                 break;
             Sleep(backoff);
@@ -72,7 +72,7 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
         OVERLAPPED ov{};
         HandleGuard hEvent(CreateEventW(NULL, FALSE, FALSE, NULL));
         if (!hEvent) {
-            WriteLog(L"Failed to create directory watch event.");
+            WriteLog(LogLevel::Error, L"Failed to create directory watch event.");
             break;
         }
         ov.hEvent = hEvent.get();
@@ -87,7 +87,7 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
                 &bytesReturned, &ov, NULL);
 
             if (!ok) {
-                WriteLog(L"ReadDirectoryChangesW failed.");
+                WriteLog(LogLevel::Error, L"ReadDirectoryChangesW failed.");
                 restart = true;
                 break;
             }
@@ -99,14 +99,14 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
                 return;
             }
             if (wait != WAIT_OBJECT_0) {
-                WriteLog(L"WaitForMultipleObjects failed.");
+                WriteLog(LogLevel::Error, L"WaitForMultipleObjects failed.");
                 restart = true;
                 break;
             }
 
             bytesReturned = 0;
             if (!GetOverlappedResult(hDir.get(), &ov, &bytesReturned, FALSE)) {
-                WriteLog(L"GetOverlappedResult failed.");
+                WriteLog(LogLevel::Error, L"GetOverlappedResult failed.");
                 restart = true;
                 break;
             }
@@ -127,7 +127,7 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
 
             g_config.load();
             ApplyConfig(self->m_hwnd);
-            WriteLog(L"Configuration reloaded.");
+            WriteLog(LogLevel::Info, L"Configuration reloaded.");
 
             if (renamed)
                 restart = true;
