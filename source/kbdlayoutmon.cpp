@@ -94,6 +94,10 @@ std::wstring GetUsageString() {
         L"  --log-path <path>          Override log file location\n"
         L"  --max-log-size-mb <num>    Override max log size\n"
         L"  --max-queue-size <num>     Override log queue length\n"
+        L"  --enable-startup           Add application to user startup\n"
+        L"  --disable-startup          Remove application from user startup\n"
+        L"  --enable-language-hotkey   Enable the Windows \"Language\" hotkey\n"
+        L"  --disable-layout-hotkey    Disable the Windows \"Layout\" hotkey\n"
         L"  --version    Print the application version and exit\n"
         L"  --help       Show this help message and exit";
 }
@@ -248,6 +252,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             } else if (wcscmp(argv[i], L"--max-queue-size") == 0 && i + 1 < argc) {
                 g_config.set(L"max_queue_size", argv[i + 1]);
                 ++i;
+            } else if (wcscmp(argv[i], L"--enable-startup") == 0) {
+                AddToStartup();
+            } else if (wcscmp(argv[i], L"--disable-startup") == 0) {
+                RemoveFromStartup();
+            } else if (wcscmp(argv[i], L"--enable-language-hotkey") == 0) {
+                ToggleLanguageHotKey(nullptr, true, true);
+            } else if (wcscmp(argv[i], L"--disable-layout-hotkey") == 0) {
+                ToggleLayoutHotKey(nullptr, true, false);
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
                 g_cliMode = true;
                 g_trayIconEnabled.store(false);

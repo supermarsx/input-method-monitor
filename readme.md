@@ -51,8 +51,26 @@ configuration file. Use `--help` to display a summary at runtime:
 --log-path <path>         Override log file location
 --max-log-size-mb <num>   Override maximum log size
 --max-queue-size <num>    Override maximum queued log messages
+--enable-startup          Add the application to user startup
+--disable-startup         Remove the application from user startup
+--enable-language-hotkey  Enable the Windows "Language" hotkey
+--disable-layout-hotkey   Disable the Windows "Layout" hotkey
 --version                 Print the application version and exit
 --help                    Show this help text
+```
+
+### Examples
+
+Enable startup launch and the language hotkey:
+
+```bash
+kbdlayoutmon --enable-startup --enable-language-hotkey
+```
+
+Disable startup launch and the layout hotkey:
+
+```bash
+kbdlayoutmon --disable-startup --disable-layout-hotkey
 ```
 
 ## Build
