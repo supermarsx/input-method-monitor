@@ -26,8 +26,23 @@ TrayIcon::TrayIcon(HWND hwnd) {
     nid_.uID = 1;
     nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid_.uCallbackMessage = WM_TRAYICON;
-    nid_.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
-    wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), L"kbdlayoutmon");
+    // Load icon from configuration if provided, otherwise fall back to resource
+    auto iconVal = g_config.get(L"icon_path");
+    if (iconVal && !iconVal->empty()) {
+        nid_.hIcon = reinterpret_cast<HICON>(
+            LoadImageW(nullptr, iconVal->c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
+    }
+    if (!nid_.hIcon) {
+        nid_.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
+    }
+
+    // Set tray tooltip from configuration or use default name
+    auto tipVal = g_config.get(L"tray_tooltip");
+    if (tipVal && !tipVal->empty()) {
+        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), tipVal->c_str());
+    } else {
+        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), L"kbdlayoutmon");
+    }
     pShell_NotifyIcon(NIM_ADD, &nid_);
     added_ = true;
 }

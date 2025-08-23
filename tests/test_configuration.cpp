@@ -17,7 +17,9 @@ TEST_CASE("Valid entries are parsed", "[config]") {
         L"Temp_Hotkey_TimeOut=5000",
         L"LOG_PATH=C:/tmp/log.txt",
         L"MAX_LOG_SIZE_MB=5",
-        L"MAX_QUEUE_SIZE=2000"
+        L"MAX_QUEUE_SIZE=2000",
+        L"ICON_PATH=C:/icons/app.ico",
+        L"TRAY_TOOLTIP=Hello"
     };
     auto settings = ParseConfigLines(lines);
     REQUIRE(settings[L"debug"] == L"1");
@@ -26,6 +28,8 @@ TEST_CASE("Valid entries are parsed", "[config]") {
     REQUIRE(settings[L"log_path"] == L"C:/tmp/log.txt");
     REQUIRE(settings[L"max_log_size_mb"] == L"5");
     REQUIRE(settings[L"max_queue_size"] == L"2000");
+    REQUIRE(settings[L"icon_path"] == L"C:/icons/app.ico");
+    REQUIRE(settings[L"tray_tooltip"] == L"Hello");
 }
 
 TEST_CASE("Malformed lines are ignored", "[config]") {
