@@ -97,6 +97,8 @@ std::wstring GetUsageString() {
         L"  --enable-startup           Add application to user startup\n"
         L"  --disable-startup          Remove application from user startup\n"
         L"  --enable-language-hotkey   Enable the Windows \"Language\" hotkey\n"
+        L"  --disable-language-hotkey  Disable the Windows \"Language\" hotkey\n"
+        L"  --enable-layout-hotkey     Enable the Windows \"Layout\" hotkey\n"
         L"  --disable-layout-hotkey    Disable the Windows \"Layout\" hotkey\n"
         L"  --version    Print the application version and exit\n"
         L"  --status     Print startup and hotkey states and exit\n"
@@ -259,6 +261,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 RemoveFromStartup();
             } else if (wcscmp(argv[i], L"--enable-language-hotkey") == 0) {
                 ToggleLanguageHotKey(nullptr, true, true);
+            } else if (wcscmp(argv[i], L"--disable-language-hotkey") == 0) {
+                ToggleLanguageHotKey(nullptr, true, false);
+            } else if (wcscmp(argv[i], L"--enable-layout-hotkey") == 0) {
+                ToggleLayoutHotKey(nullptr, true, true);
             } else if (wcscmp(argv[i], L"--disable-layout-hotkey") == 0) {
                 ToggleLayoutHotKey(nullptr, true, false);
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
