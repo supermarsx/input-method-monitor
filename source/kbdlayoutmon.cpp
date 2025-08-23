@@ -131,6 +131,28 @@ void ApplyConfig(HWND hwnd) {
         g_tempHotKeyTimeout =
             std::wcstoul(timeoutVal->c_str(), nullptr, 10);
     }
+
+    if (auto startupVal = g_config.get(L"startup")) {
+        bool desired = *startupVal != L"0";
+        if (desired != g_startupEnabled) {
+            if (desired)
+                AddToStartup();
+            else
+                RemoveFromStartup();
+        }
+    }
+
+    if (auto langVal = g_config.get(L"language_hotkey")) {
+        bool desired = *langVal != L"0";
+        if (desired != g_languageHotKeyEnabled.load())
+            ToggleLanguageHotKey(hwnd, true, desired);
+    }
+
+    if (auto layoutVal = g_config.get(L"layout_hotkey")) {
+        bool desired = *layoutVal != L"0";
+        if (desired != g_layoutHotKeyEnabled.load())
+            ToggleLayoutHotKey(hwnd, true, desired);
+    }
 }
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
