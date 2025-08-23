@@ -18,6 +18,7 @@
 #include "tray_icon.h"
 #include "hotkey_registry.h"
 #include "hotkey_cli.h"
+#include "cli_utils.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
@@ -79,36 +80,6 @@ std::wstring GetVersionString() {
              LOWORD(info->dwFileVersionLS));
     return ver;
 }
-
-// Return a short usage string describing supported options
-std::wstring GetUsageString() {
-    return
-        L"Usage: kbdlayoutmon [options]\n\n"
-        L"Options:\n"
-        L"  --config <path>  Load configuration from the specified file\n"
-        L"  --no-tray    Run without the system tray icon\n"
-        L"  --debug      Enable debug logging\n"
-        L"  --verbose    Increase logging verbosity\n"
-        L"  --cli        Run in CLI mode without GUI/tray icon\n"
-        L"  --tray-icon <0|1>        Override tray icon setting\n"
-        L"  --temp-hotkey-timeout <ms>  Override temporary hotkey timeout\n"
-        L"  --log-path <path>          Override log file location\n"
-        L"  --max-log-size-mb <num>    Override max log size\n"
-        L"  --max-queue-size <num>     Override log queue length\n"
-        L"  --enable-startup           Add application to user startup\n"
-        L"  --disable-startup          Remove application from user startup\n"
-        L"  --enable-language-hotkey   Enable the Windows \"Language\" hotkey\n"
-        L"  --disable-language-hotkey  Disable the Windows \"Language\" hotkey\n"
-        L"  --enable-layout-hotkey     Enable the Windows \"Layout\" hotkey\n"
-        L"  --disable-layout-hotkey    Disable the Windows \"Layout\" hotkey\n"
-        L"  --version    Print the application version and exit\n"
-        L"  --status     Print startup and hotkey states and exit\n"
-        L"  --help       Show this help message and exit";
-}
-
-
-
-
 
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
@@ -360,6 +331,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                     g_hInstanceMutex.reset();
                 }
                 return 0;
+            } else {
+                WarnUnrecognizedOption(argv[i]);
+                LocalFree(argv);
+                if (g_hInstanceMutex) {
+                    ReleaseMutex(g_hInstanceMutex.get());
+                    g_hInstanceMutex.reset();
+                }
+                return 1;
             }
         }
         ApplyConfig(NULL);
