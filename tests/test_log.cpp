@@ -78,6 +78,37 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
     fs::remove_all(dir);
 }
 
+TEST_CASE("Log keeps only configured number of backups", "[log]") {
+    g_debugEnabled.store(true);
+    using namespace std::chrono_literals;
+    namespace fs = std::filesystem;
+    fs::path dir = fs::temp_directory_path() / "immon_log_backup_limit";
+    fs::create_directories(dir);
+
+    fs::path logPath = dir / "limit.log";
+    g_config.set(L"log_path", logPath.wstring());
+    g_config.set(L"max_log_size_mb", L"1");
+    g_config.set(L"max_log_backups", L"2");
+    Log log;
+
+    std::wstring big(1024 * 1024, L'a');
+    for (int i = 0; i < 4; ++i) {
+        log.write(big);
+        std::this_thread::sleep_for(200ms);
+        log.write(L"entry");
+        std::this_thread::sleep_for(200ms);
+    }
+
+    log.shutdown();
+
+    REQUIRE(fs::exists(logPath));
+    REQUIRE(fs::exists(logPath.wstring() + L".1"));
+    REQUIRE(fs::exists(logPath.wstring() + L".2"));
+    REQUIRE(!fs::exists(logPath.wstring() + L".3"));
+
+    fs::remove_all(dir);
+}
+
 TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 #ifndef _WIN32
     g_debugEnabled.store(true);
