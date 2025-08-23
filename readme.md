@@ -58,6 +58,7 @@ configuration file. Use `--help` to display a summary at runtime:
 --enable-language-hotkey  Enable the Windows "Language" hotkey
 --disable-layout-hotkey   Disable the Windows "Layout" hotkey
 --version                 Print the application version and exit
+--status                  Print startup and hotkey states and exit
 --help                    Show this help text
 ```
 
@@ -73,6 +74,15 @@ Disable startup launch and the layout hotkey:
 
 ```bash
 kbdlayoutmon --disable-startup --disable-layout-hotkey
+```
+
+Display current startup and hotkey status:
+
+```bash
+kbdlayoutmon --status
+Startup: disabled
+Language hotkey: enabled
+Layout hotkey: disabled
 ```
 
 ## Build

@@ -99,6 +99,7 @@ std::wstring GetUsageString() {
         L"  --enable-language-hotkey   Enable the Windows \"Language\" hotkey\n"
         L"  --disable-layout-hotkey    Disable the Windows \"Layout\" hotkey\n"
         L"  --version    Print the application version and exit\n"
+        L"  --status     Print startup and hotkey states and exit\n"
         L"  --help       Show this help message and exit";
 }
 
@@ -288,6 +289,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                         FreeConsole();
                 } else {
                     MessageBox(NULL, version.c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
+                }
+                LocalFree(argv);
+                if (g_hInstanceMutex) {
+                    ReleaseMutex(g_hInstanceMutex.get());
+                    g_hInstanceMutex.reset();
+                }
+                return 0;
+            } else if (wcscmp(argv[i], L"--status") == 0) {
+                bool startup = IsStartupEnabled();
+                bool lang = IsLanguageHotKeyEnabled();
+                bool layout = IsLayoutHotKeyEnabled();
+                if (g_cliMode || AttachConsole(ATTACH_PARENT_PROCESS)) {
+                    FILE* fp = _wfopen(L"CONOUT$", L"w");
+                    if (fp) {
+                        fwprintf(fp, L"Startup: %s\n", startup ? L"enabled" : L"disabled");
+                        fwprintf(fp, L"Language hotkey: %s\n", lang ? L"enabled" : L"disabled");
+                        fwprintf(fp, L"Layout hotkey: %s\n", layout ? L"enabled" : L"disabled");
+                        fclose(fp);
+                    }
+                    if (!g_cliMode)
+                        FreeConsole();
+                } else {
+                    std::wstringstream ss;
+                    ss << L"Startup: " << (startup ? L"enabled" : L"disabled") << L"\n"
+                       << L"Language hotkey: " << (lang ? L"enabled" : L"disabled") << L"\n"
+                       << L"Layout hotkey: " << (layout ? L"enabled" : L"disabled");
+                    MessageBox(NULL, ss.str().c_str(), L"Input Method Monitor", MB_OK | MB_ICONINFORMATION);
                 }
                 LocalFree(argv);
                 if (g_hInstanceMutex) {
