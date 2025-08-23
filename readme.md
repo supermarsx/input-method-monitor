@@ -28,6 +28,8 @@ TEMP_HOTKEY_TIMEOUT=10000 # Milliseconds for temporary hotkeys to remain enabled
 LOG_PATH=path\to\logfile # Optional custom log file location
 MAX_LOG_SIZE_MB=10 # Rotate log when it exceeds this size in megabytes
 MAX_QUEUE_SIZE=1000 # Maximum number of log messages buffered before dropping oldest
+ICON_PATH=path\to\icon.ico # Optional custom tray icon
+TRAY_TOOLTIP=Some text # Custom tray icon tooltip (default "kbdlayoutmon")
 ```
 
 Lines that begin with `#` or `;` (after trimming whitespace) are treated as comments and ignored.

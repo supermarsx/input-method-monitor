@@ -105,6 +105,9 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
             result[key] = ParseUnsignedOrDefault(value, 1000);
         } else if (key == L"startup" || key == L"language_hotkey" || key == L"layout_hotkey") {
             result[key] = ParseBoolOrDefault(value, false);
+        } else if (key == L"icon_path" || key == L"tray_tooltip") {
+            // String values used by the tray icon subsystem
+            result[key] = value;
         } else {
             result[key] = value;
         }

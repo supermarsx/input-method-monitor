@@ -116,6 +116,8 @@ struct FILE_NOTIFY_INFORMATION {
 #define NIF_TIP 0x00000004
 #define NIM_ADD 0x00000000
 #define NIM_DELETE 0x00000002
+#define IMAGE_ICON 1
+#define LR_LOADFROMFILE 0x00000010
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(A) (sizeof(A) / sizeof((A)[0]))
 #endif
@@ -150,6 +152,7 @@ extern "C" {
     extern BOOL (*pGetOverlappedResult)(HANDLE, OVERLAPPED*, DWORD*, BOOL);
     extern DWORD (*pWaitForMultipleObjects)(DWORD, const HANDLE*, BOOL, DWORD);
     extern DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD);
+    extern HANDLE (*pLoadImageW)(HINSTANCE, LPCWSTR, UINT, int, int, UINT);
 
     ATOM RegisterClass(const WNDCLASS*);
     HWND CreateWindowEx(DWORD, LPCWSTR, LPCWSTR, DWORD, int, int, int, int, HWND, HANDLE, HINSTANCE, LPVOID);
@@ -197,6 +200,7 @@ inline BOOL CancelIoEx(HANDLE a, OVERLAPPED* b) { return pCancelIoEx(a,b); }
 inline BOOL GetOverlappedResult(HANDLE a, OVERLAPPED* b, DWORD* c, BOOL d) { return pGetOverlappedResult(a,b,c,d); }
 inline DWORD WaitForMultipleObjects(DWORD a, const HANDLE* b, BOOL c, DWORD d) { return pWaitForMultipleObjects(a,b,c,d); }
 inline DWORD GetModuleFileNameW(HINSTANCE inst, wchar_t* buffer, DWORD size) { return pGetModuleFileNameW(inst, buffer, size); }
+inline HANDLE LoadImageW(HINSTANCE a, LPCWSTR b, UINT c, int d, int e, UINT f) { return pLoadImageW(a,b,c,d,e,f); }
 inline void CloseHandle(HANDLE) {}
 inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
 inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD, HKEY*) { return ERROR_SUCCESS; }
