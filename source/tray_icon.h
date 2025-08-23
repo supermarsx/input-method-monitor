@@ -1,6 +1,7 @@
 #pragma once
 #include <windows.h>
 #include <atomic>
+#include <string>
 
 // Extern declarations for shared state
 extern HINSTANCE g_hInst;
@@ -31,6 +32,9 @@ public:
 
     TrayIcon(const TrayIcon&) = delete;
     TrayIcon& operator=(const TrayIcon&) = delete;
+
+    // Reload the tray icon and tooltip based on provided values.
+    void Update(const std::wstring& iconPath, const std::wstring& tooltip);
 
 private:
     NOTIFYICONDATA nid_{};

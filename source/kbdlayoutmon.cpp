@@ -133,6 +133,21 @@ void ApplyConfig(HWND hwnd) {
         g_trayIcon = std::make_unique<TrayIcon>(hwnd);
     }
 
+    // Update tray icon resources if icon path or tooltip changed
+    auto iconVal = g_config.get(L"icon_path");
+    auto tipVal = g_config.get(L"tray_tooltip");
+    std::wstring newIcon = iconVal ? *iconVal : L"";
+    std::wstring newTip = tipVal ? *tipVal : L"";
+    static std::wstring lastIcon;
+    static std::wstring lastTip;
+    if (newIcon != lastIcon || newTip != lastTip) {
+        if (g_trayIcon) {
+            g_trayIcon->Update(newIcon, newTip);
+        }
+        lastIcon = newIcon;
+        lastTip = newTip;
+    }
+
     auto timeoutVal = g_config.get(L"temp_hotkey_timeout");
     if (timeoutVal) {
         g_tempHotKeyTimeout =
