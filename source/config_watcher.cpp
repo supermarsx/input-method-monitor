@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "config_watcher.h"
 
 #include <string>
@@ -134,4 +135,4 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
         }
     }
 }
-
+#endif

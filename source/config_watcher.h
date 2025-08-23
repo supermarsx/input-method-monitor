@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef _WIN32
 #include <windows.h>
 #include <thread>
 #include "handle_guard.h"
@@ -27,4 +28,6 @@ private:
     std::thread m_thread;   ///< Background thread.
     HandleGuard m_stopEvent; ///< Event used to signal thread shutdown.
 };
-
+#else
+#include "config_watcher_posix.h"
+#endif

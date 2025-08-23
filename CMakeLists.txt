@@ -70,26 +70,38 @@ endif()
 # Unit tests
 find_package(Catch2 3 REQUIRED)
 
-add_executable(run_tests
+set(TEST_SOURCES
     tests/test_configuration.cpp
     tests/test_log.cpp
-    tests/test_utils.cpp
     tests/bench_pipe.cpp
-    tests/test_config_watcher.cpp
-    tests/test_worker_thread.cpp
-    tests/test_hotkey_registry.cpp
+)
+
+set(RUN_SOURCES
     source/log.cpp
     source/configuration.cpp
     source/config_parser.cpp
-    source/config_watcher.cpp
-    source/hotkey_registry.cpp
-    source/kbdlayoutmonhook.cpp
 )
 
+if(WIN32)
+    list(APPEND TEST_SOURCES
+        tests/test_utils.cpp
+        tests/test_config_watcher.cpp
+        tests/test_worker_thread.cpp
+        tests/test_hotkey_registry.cpp
+    )
+    list(APPEND RUN_SOURCES
+        source/config_watcher.cpp
+        source/hotkey_registry.cpp
+        source/kbdlayoutmonhook.cpp
+    )
+else()
+    list(APPEND RUN_SOURCES source/config_watcher_posix.cpp tests/stubs.cpp)
+endif()
+
+add_executable(run_tests ${TEST_SOURCES} ${RUN_SOURCES})
 target_include_directories(run_tests PRIVATE tests source)
 target_link_libraries(run_tests PRIVATE Catch2::Catch2WithMain)
 target_compile_definitions(run_tests PRIVATE UNIT_TEST)
 
 enable_testing()
 add_test(NAME run_tests COMMAND run_tests)
-
