@@ -57,16 +57,34 @@ extern "C" void SetDebugLoggingEnabled(bool enabled) {
     g_debugEnabled.store(enabled);
 }
 
-extern "C" void WriteLog(const wchar_t* message) {
-    g_log.write(message);
+namespace {
+const wchar_t* LevelPrefix(LogLevel level) {
+    switch (level) {
+    case LogLevel::Warn:
+        return L"WARN";
+    case LogLevel::Error:
+        return L"ERROR";
+    default:
+        return L"INFO";
+    }
+}
+}
+
+void WriteLog(LogLevel level, const wchar_t* message) {
+    g_log.write(level, message);
     if (g_verboseLogging) {
+        std::wstring out = std::wstring(L"[") + LevelPrefix(level) + L"] " + message;
 #ifdef _WIN32
-        OutputDebugStringW(message);
+        OutputDebugStringW(out.c_str());
         OutputDebugStringW(L"\n");
 #else
-        std::wcerr << message << std::endl;
+        std::wcerr << out << std::endl;
 #endif
     }
+}
+
+extern "C" void WriteLog(const wchar_t* message) {
+    WriteLog(LogLevel::Info, message);
 }
 
 Log::Log(size_t maxQueueSize, bool startThreads) : m_maxQueueSize(maxQueueSize) {
@@ -112,7 +130,7 @@ void Log::shutdown() {
 #endif
 }
 
-void Log::write(const std::wstring& message) {
+void Log::write(LogLevel level, const std::wstring& message) {
     if (!g_debugEnabled.load())
         return;
     {
@@ -120,9 +138,13 @@ void Log::write(const std::wstring& message) {
         if (m_queue.size() >= m_maxQueueSize) {
             m_queue.pop();
         }
-        m_queue.push(message);
+        m_queue.push({level, message});
     }
     m_cv.notify_one();
+}
+
+void Log::write(const std::wstring& message) {
+    write(LogLevel::Info, message);
 }
 
 void Log::setMaxQueueSize(size_t maxSize) {
@@ -142,7 +164,7 @@ std::wstring Log::peekOldest() const {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_queue.empty())
         return std::wstring{};
-    return m_queue.front();
+    return m_queue.front().second;
 }
 
 void Log::process() {
@@ -163,16 +185,18 @@ void Log::process() {
     auto logError = [this](const wchar_t* msg) {
         ++m_suppress;
         bool prev = g_debugEnabled.exchange(true);
-        this->write(msg);
+        this->write(LogLevel::Error, msg);
         g_debugEnabled.store(prev);
     };
     for (;;) {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cv.wait(lock, [this] { return !m_queue.empty() || !m_running; });
         while (!m_queue.empty()) {
-            std::wstring msg = std::move(m_queue.front());
+            auto entry = std::move(m_queue.front());
             m_queue.pop();
             lock.unlock();
+            LogLevel level = entry.first;
+            std::wstring msg = std::move(entry.second);
 
             bool suppress = false;
             if (m_suppress > 0) {
@@ -277,7 +301,7 @@ void Log::process() {
                 localtime_r(&t, &tm);
                 swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 #endif
-                m_file << ts << L" " << msg << std::endl;
+                m_file << ts << L" [" << LevelPrefix(level) << L"] " << msg << std::endl;
             } else {
 #ifdef _WIN32
                 OutputDebugString(L"Failed to write to log file.");
@@ -344,7 +368,19 @@ void Log::pipeListener() {
             } while (!success && GetLastError() == ERROR_MORE_DATA);
 
             if (success && !message.empty()) {
-                write(message);
+                LogLevel level = LogLevel::Info;
+                if (message.size() > 2 && message[0] == L'[') {
+                    auto pos = message.find(L"] ");
+                    if (pos != std::wstring::npos) {
+                        std::wstring lvl = message.substr(1, pos - 1);
+                        if (lvl == L"WARN")
+                            level = LogLevel::Warn;
+                        else if (lvl == L"ERROR")
+                            level = LogLevel::Error;
+                        message = message.substr(pos + 2);
+                    }
+                }
+                write(level, message);
             }
         }
 

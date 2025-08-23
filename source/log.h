@@ -7,6 +7,16 @@
 #include <queue>
 #include <fstream>
 #include <atomic>
+#include <utility>
+
+/**
+ * @brief Severity levels for log messages.
+ */
+enum class LogLevel {
+    Info,
+    Warn,
+    Error
+};
 
 #ifdef _WIN32
 #  include <windows.h>
@@ -41,9 +51,11 @@ public:
      * entries, the oldest message is dropped to make room for the new
      * one.
      *
+     * @param level   Severity of the message.
      * @param message Text to append to the log file.
      * @sideeffects Signals the worker thread to write the entry.
      */
+    void write(LogLevel level, const std::wstring& message);
     void write(const std::wstring& message);
 
     /// Adjust the maximum number of queued messages.
@@ -71,7 +83,7 @@ private:
 #endif
     mutable std::mutex m_mutex;
     std::condition_variable m_cv;
-    std::queue<std::wstring> m_queue;
+    std::queue<std::pair<LogLevel, std::wstring>> m_queue;
     std::wofstream m_file;
     bool m_running = false;
     size_t m_maxQueueSize = 1000;
@@ -86,10 +98,20 @@ extern Log g_log;
  * @param message Null‑terminated string to append.
  */
 #ifdef _WIN32
+__declspec(dllexport) void WriteLog(LogLevel level, const wchar_t* message);
 extern "C" __declspec(dllexport) void WriteLog(const wchar_t* message);
 #else
+void WriteLog(LogLevel level, const wchar_t* message);
 extern "C" void WriteLog(const wchar_t* message);
 #endif
+
+inline void WriteLog(LogLevel level, const std::wstring& message) {
+    WriteLog(level, message.c_str());
+}
+
+inline void WriteLog(const std::wstring& message) {
+    WriteLog(message.c_str());
+}
 
 /**
  * @brief Enable or disable debug logging in the DLL.

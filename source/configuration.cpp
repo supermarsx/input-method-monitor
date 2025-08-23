@@ -45,7 +45,7 @@ void Configuration::load(std::optional<std::wstring> path) {
 #endif
     if (!file.is_open()) {
         std::wstring msg = L"Failed to open configuration file: " + fullPath;
-        WriteLog(msg.c_str());
+        WriteLog(LogLevel::Error, msg.c_str());
         return;
     }
 
