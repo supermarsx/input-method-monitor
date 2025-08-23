@@ -4,6 +4,8 @@
 #include <string>
 #include <shlwapi.h>
 #include <system_error>
+#include <chrono>
+#include <thread>
 
 #include "configuration.h"
 #include "log.h"
@@ -58,7 +60,9 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
             WriteLog(LogLevel::Error, L"CreateFileW failed for configuration directory.");
             if (WaitForSingleObject(self->m_stopEvent.get(), 0) == WAIT_OBJECT_0)
                 break;
-            Sleep(backoff);
+            std::wstring delayMsg = L"Retrying directory watch in " + std::to_wstring(backoff) + L" ms.";
+            WriteLog(LogLevel::Warn, delayMsg);
+            std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
             if (backoff < kMaxBackoff) {
                 backoff *= 2;
                 if (backoff > kMaxBackoff)
