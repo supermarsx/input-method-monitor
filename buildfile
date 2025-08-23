@@ -6,6 +6,7 @@ cxx.std = 17
 # Build the main executable
 exe{kbdlayoutmon}: \
   source/kbdlayoutmon.cpp \
+  source/cli_utils.cpp \
   source/configuration.cpp \
   source/config_parser.cpp \
   source/log.cpp \
@@ -24,9 +25,11 @@ exe{run_tests}: \
   tests/test_configuration.cpp \
   tests/test_log.cpp \
   tests/test_utils.cpp \
+  tests/test_unknown_option.cpp \
   source/log.cpp \
   source/configuration.cpp \
-  source/config_parser.cpp
+  source/config_parser.cpp \
+  source/cli_utils.cpp
 
 # Register test target
 test{run_tests}
