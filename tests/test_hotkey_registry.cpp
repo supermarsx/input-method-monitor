@@ -11,6 +11,11 @@ LONG g_RegSetValueExResult = ERROR_SUCCESS;
 extern std::atomic<bool> g_debugEnabled;
 UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC) = [](HWND, UINT, UINT, TIMERPROC) -> UINT { return 1; };
 BOOL (*pKillTimer)(HWND, UINT) = [](HWND, UINT) -> BOOL { return TRUE; };
+std::atomic<bool> g_languageHotKeyEnabled{false};
+std::atomic<bool> g_layoutHotKeyEnabled{false};
+SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = nullptr;
+SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = nullptr;
+DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD) = [](HINSTANCE, wchar_t*, DWORD) -> DWORD { return 0; };
 
 TEST_CASE("Startup registry flag toggles") {
     g_startupEnabled = false;
@@ -72,5 +77,21 @@ TEST_CASE("TemporarilyEnableHotKeys logs error and preserves state on RegSetValu
     g_RegSetValueExResult = ERROR_SUCCESS;
     g_config.set(L"log_path", L"");
     fs::remove(logPath);
+}
+
+TEST_CASE("DisableLanguageHotKey sets flag to disabled") {
+    g_RegSetValueExResult = ERROR_SUCCESS;
+    ToggleLanguageHotKey(nullptr, true, true);
+    REQUIRE(g_languageHotKeyEnabled.load());
+    ToggleLanguageHotKey(nullptr, true, false);
+    REQUIRE_FALSE(g_languageHotKeyEnabled.load());
+}
+
+TEST_CASE("EnableLayoutHotKey sets flag to enabled") {
+    g_RegSetValueExResult = ERROR_SUCCESS;
+    ToggleLayoutHotKey(nullptr, true, false);
+    REQUIRE_FALSE(g_layoutHotKeyEnabled.load());
+    ToggleLayoutHotKey(nullptr, true, true);
+    REQUIRE(g_layoutHotKeyEnabled.load());
 }
 
