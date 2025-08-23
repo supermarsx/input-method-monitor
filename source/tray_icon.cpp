@@ -53,6 +53,28 @@ TrayIcon::~TrayIcon() {
     }
 }
 
+void TrayIcon::Update(const std::wstring& iconPath, const std::wstring& tooltip) {
+    if (!added_) return;
+
+    HICON hIcon = nullptr;
+    if (!iconPath.empty()) {
+        hIcon = reinterpret_cast<HICON>(
+            LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
+    }
+    if (!hIcon) {
+        hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
+    }
+    nid_.hIcon = hIcon;
+
+    if (!tooltip.empty()) {
+        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), tooltip.c_str());
+    } else {
+        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), L"kbdlayoutmon");
+    }
+
+    pShell_NotifyIcon(NIM_MODIFY, &nid_);
+}
+
 #ifndef UNIT_TEST
 void ShowTrayMenu(HWND hwnd) {
     if (!g_trayIconEnabled.load()) return;
