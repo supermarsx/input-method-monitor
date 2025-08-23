@@ -52,6 +52,8 @@ std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray ic
 bool g_cliMode = false;                     // Suppress GUI/tray behavior
 HWND g_hwnd = NULL;                // Handle to our message window
 std::unique_ptr<TrayIcon> g_trayIcon;
+std::wstring g_cliIconPath;       // Command-line override for tray icon
+std::wstring g_cliTrayTooltip;    // Command-line override for tray tooltip
 // Retrieve version information from the executable's version resource
 std::wstring GetVersionString() {
     wchar_t path[MAX_PATH] = {0};
@@ -237,6 +239,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ++i;
             } else if (wcscmp(argv[i], L"--log-path") == 0 && i + 1 < argc) {
                 g_config.set(L"log_path", argv[i + 1]);
+                ++i;
+            } else if (wcscmp(argv[i], L"--icon-path") == 0 && i + 1 < argc) {
+                g_config.set(L"icon_path", argv[i + 1]);
+                g_cliIconPath = argv[i + 1];
+                ++i;
+            } else if (wcscmp(argv[i], L"--tray-tooltip") == 0 && i + 1 < argc) {
+                g_config.set(L"tray_tooltip", argv[i + 1]);
+                g_cliTrayTooltip = argv[i + 1];
                 ++i;
             } else if (wcscmp(argv[i], L"--max-log-size-mb") == 0 && i + 1 < argc) {
                 g_config.set(L"max_log_size_mb", argv[i + 1]);
