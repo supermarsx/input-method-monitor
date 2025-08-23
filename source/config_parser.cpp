@@ -17,6 +17,18 @@ std::wstring ParseUnsignedOrDefault(const std::wstring& value, unsigned long def
 }
 } // namespace
 
+std::wstring ParseBoolOrDefault(const std::wstring& value, bool def) {
+    std::wstring lower = value;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](wchar_t c) {
+        return std::towlower(c);
+    });
+    if (lower == L"1" || lower == L"true" || lower == L"yes" || lower == L"on")
+        return L"1";
+    if (lower == L"0" || lower == L"false" || lower == L"no" || lower == L"off")
+        return L"0";
+    return def ? L"1" : L"0";
+}
+
 std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wstring>& lines) {
     std::map<std::wstring, std::wstring> result;
     for (const std::wstring& line : lines) {
@@ -91,6 +103,8 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
             result[key] = ParseUnsignedOrDefault(value, 10);
         } else if (key == L"max_queue_size") {
             result[key] = ParseUnsignedOrDefault(value, 1000);
+        } else if (key == L"startup" || key == L"language_hotkey" || key == L"layout_hotkey") {
+            result[key] = ParseBoolOrDefault(value, false);
         } else {
             result[key] = value;
         }
