@@ -22,6 +22,7 @@ add_executable(kbdlayoutmon
     source/log.cpp
     source/tray_icon.cpp
     source/hotkey_registry.cpp
+    source/hotkey_cli.cpp
     resources/res-icon.rc
     resources/res-versioninfo.rc
 )
@@ -92,6 +93,7 @@ if(WIN32)
     list(APPEND RUN_SOURCES
         source/config_watcher.cpp
         source/hotkey_registry.cpp
+        source/hotkey_cli.cpp
         source/kbdlayoutmonhook.cpp
     )
 else()

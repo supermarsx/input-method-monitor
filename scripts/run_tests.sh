@@ -9,8 +9,10 @@ fi
 
 g++ -std=c++17 -DUNIT_TEST -I tests -I resources \
     tests/test_configuration.cpp tests/test_log.cpp tests/test_utils.cpp tests/test_timer_guard.cpp \
-    tests/test_tray_icon.cpp tests/test_tray_icon_integration.cpp tests/test_tray_icon_update.cpp tests/stubs.cpp \
+    tests/test_tray_icon.cpp tests/test_tray_icon_integration.cpp tests/test_tray_icon_update.cpp \
+    tests/test_hotkey_registry.cpp tests/stubs.cpp \
     source/configuration.cpp source/log.cpp source/config_parser.cpp source/tray_icon.cpp \
+    source/hotkey_registry.cpp source/hotkey_cli.cpp source/config_watcher.cpp \
     -o tests/run_tests \
     -lCatch2Main -lCatch2 -pthread
 ./tests/run_tests

@@ -64,6 +64,10 @@ configuration file. Use `--help` to display a summary at runtime:
 --help                    Show this help text
 ```
 
+The `--disable-language-hotkey` and `--enable-layout-hotkey` flags let you
+explicitly turn the Windows *Language* or *Layout* hotkeys off or on from the
+command line.
+
 ### Examples
 
 Enable startup launch and the language hotkey:

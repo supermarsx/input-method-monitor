@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "../source/hotkey_registry.h"
 #include "../source/configuration.h"
+#include "../source/hotkey_cli.h"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -9,8 +10,8 @@
 
 LONG g_RegSetValueExResult = ERROR_SUCCESS;
 extern std::atomic<bool> g_debugEnabled;
-UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC) = [](HWND, UINT, UINT, TIMERPROC) -> UINT { return 1; };
-BOOL (*pKillTimer)(HWND, UINT) = [](HWND, UINT) -> BOOL { return TRUE; };
+extern UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC);
+extern BOOL (*pKillTimer)(HWND, UINT);
 std::atomic<bool> g_languageHotKeyEnabled{false};
 std::atomic<bool> g_layoutHotKeyEnabled{false};
 SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = nullptr;
@@ -92,6 +93,20 @@ TEST_CASE("EnableLayoutHotKey sets flag to enabled") {
     ToggleLayoutHotKey(nullptr, true, false);
     REQUIRE_FALSE(g_layoutHotKeyEnabled.load());
     ToggleLayoutHotKey(nullptr, true, true);
+    REQUIRE(g_layoutHotKeyEnabled.load());
+}
+
+TEST_CASE("Command line flag disables Language hotkey") {
+    g_RegSetValueExResult = ERROR_SUCCESS;
+    g_languageHotKeyEnabled.store(true);
+    REQUIRE(HandleHotkeyFlag(L"--disable-language-hotkey"));
+    REQUIRE_FALSE(g_languageHotKeyEnabled.load());
+}
+
+TEST_CASE("Command line flag enables Layout hotkey") {
+    g_RegSetValueExResult = ERROR_SUCCESS;
+    g_layoutHotKeyEnabled.store(false);
+    REQUIRE(HandleHotkeyFlag(L"--enable-layout-hotkey"));
     REQUIRE(g_layoutHotKeyEnabled.load());
 }
 
