@@ -1,8 +1,13 @@
 #include <catch2/catch_test_macros.hpp>
 #include <thread>
+#include <future>
 #include <chrono>
 #include <filesystem>
 #include <cstring>
+#include <atomic>
+
+#define _WIN32
+#include "windows.h"
 
 #define private public
 #include "../source/config_watcher.h"
@@ -14,6 +19,7 @@ void ApplyConfig(HWND) { ++applyCalls; }
 static HANDLE g_stopHandle = nullptr;
 static bool stopSignaled = false;
 int g_sleepCalls = 0;
+std::atomic<bool> g_debugEnabled{false};
 HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR) = [](void*, BOOL, BOOL, LPCWSTR){
     static intptr_t next = 1;
     return reinterpret_cast<HANDLE>(next++);
@@ -77,5 +83,37 @@ TEST_CASE("Watcher exits when stop event set and directory cannot be opened", "[
     stopSignaled = false;
     REQUIRE(elapsed < std::chrono::milliseconds(200));
     REQUIRE(g_sleepCalls >= 1);
+}
+
+TEST_CASE("Watcher thread stops promptly when signaled", "[config_watcher]") {
+    stopSignaled = false;
+    waitCalls = 0;
+
+    auto origWaitForMultipleObjects = pWaitForMultipleObjects;
+    pWaitForMultipleObjects = [](DWORD, const HANDLE*, BOOL, DWORD) -> DWORD {
+        while (!stopSignaled) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        return WAIT_OBJECT_0 + 1;
+    };
+
+    ConfigWatcher* watcher = new ConfigWatcher(nullptr);
+    g_stopHandle = watcher->m_stopEvent.get();
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    SetEvent(g_stopHandle);
+
+    auto start = std::chrono::steady_clock::now();
+    auto dtor = std::async(std::launch::async, [watcher]() { delete watcher; });
+    bool finished = dtor.wait_for(std::chrono::milliseconds(200)) == std::future_status::ready;
+    auto elapsed = std::chrono::steady_clock::now() - start;
+    if (finished) {
+        dtor.get();
+    }
+    pWaitForMultipleObjects = origWaitForMultipleObjects;
+    g_stopHandle = nullptr;
+    stopSignaled = false;
+
+    REQUIRE(finished);
+    REQUIRE(elapsed < std::chrono::milliseconds(200));
 }
 
