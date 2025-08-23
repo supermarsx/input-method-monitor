@@ -180,6 +180,8 @@ std::map<std::wstring, std::wstring> ParseConfigLines(const std::vector<std::wst
             result[key] = ParseUnsignedOrDefault(value, 10000);
         } else if (key == L"max_log_size_mb") {
             result[key] = ParseUnsignedOrDefault(value, 10);
+        } else if (key == L"max_log_backups") {
+            result[key] = ParseUnsignedOrDefault(value, 5);
         } else if (key == L"max_queue_size") {
             result[key] = ParseUnsignedOrDefault(value, 1000);
         } else if (key == L"startup" || key == L"language_hotkey" || key == L"layout_hotkey") {

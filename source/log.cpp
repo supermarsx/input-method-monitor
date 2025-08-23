@@ -235,12 +235,35 @@ void Log::process() {
                 }
                 unsigned long long maxBytes = static_cast<unsigned long long>(maxMb) * 1024 * 1024ULL;
 
+                size_t maxBackups = 5;
+                if (auto backups = g_config.get(L"max_log_backups")) {
+                    try {
+                        maxBackups = std::stoul(*backups);
+                    } catch (...) {
+                        maxBackups = 5;
+                    }
+                }
+
 #ifdef _WIN32
                 WIN32_FILE_ATTRIBUTE_DATA fad;
                 if (!suppress && GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad)) {
                     unsigned long long size = (static_cast<unsigned long long>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
                     if (size > maxBytes) {
                         m_file.close();
+
+                        for (size_t i = maxBackups; i > 0; --i) {
+                            std::wstring src = path + L"." + std::to_wstring(i);
+                            DWORD attrs = GetFileAttributesW(src.c_str());
+                            if (attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                                if (i == maxBackups) {
+                                    DeleteFileW(src.c_str());
+                                } else {
+                                    std::wstring dest = path + L"." + std::to_wstring(i + 1);
+                                    MoveFileExW(src.c_str(), dest.c_str(), MOVEFILE_REPLACE_EXISTING);
+                                }
+                            }
+                        }
+
                         std::wstring rotated = path + L".1";
                         if (!MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING)) {
                             logError(L"Failed to rotate log file.");
@@ -268,6 +291,16 @@ void Log::process() {
                         if (size > maxBytes) {
                             m_file.close();
                             try {
+                                for (size_t i = maxBackups; i > 0; --i) {
+                                    fs::path src = path + L"." + std::to_wstring(i);
+                                    if (fs::exists(src) && fs::is_regular_file(src)) {
+                                        if (i == maxBackups) {
+                                            fs::remove(src);
+                                        } else {
+                                            fs::rename(src, path + L"." + std::to_wstring(i + 1));
+                                        }
+                                    }
+                                }
                                 fs::rename(path, path + L".1");
                                 m_file.open(fs::path(path), std::ios::out | std::ios::trunc);
                                 if (!m_file.is_open()) {
