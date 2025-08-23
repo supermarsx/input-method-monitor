@@ -17,6 +17,7 @@
 #include "config_watcher.h"
 #include "tray_icon.h"
 #include "hotkey_registry.h"
+#include "hotkey_cli.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
@@ -104,6 +105,8 @@ std::wstring GetUsageString() {
         L"  --status     Print startup and hotkey states and exit\n"
         L"  --help       Show this help message and exit";
 }
+
+
 
 
 
@@ -274,14 +277,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 AddToStartup();
             } else if (wcscmp(argv[i], L"--disable-startup") == 0) {
                 RemoveFromStartup();
-            } else if (wcscmp(argv[i], L"--enable-language-hotkey") == 0) {
-                ToggleLanguageHotKey(nullptr, true, true);
-            } else if (wcscmp(argv[i], L"--disable-language-hotkey") == 0) {
-                ToggleLanguageHotKey(nullptr, true, false);
-            } else if (wcscmp(argv[i], L"--enable-layout-hotkey") == 0) {
-                ToggleLayoutHotKey(nullptr, true, true);
-            } else if (wcscmp(argv[i], L"--disable-layout-hotkey") == 0) {
-                ToggleLayoutHotKey(nullptr, true, false);
+            } else if (HandleHotkeyFlag(argv[i])) {
+                // Hotkey flag processed
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
                 g_cliMode = true;
                 g_trayIconEnabled.store(false);
