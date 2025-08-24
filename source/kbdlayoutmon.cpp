@@ -19,6 +19,7 @@
 #include "hotkey_registry.h"
 #include "hotkey_cli.h"
 #include "cli_utils.h"
+#include "app_state.h"
 
 // Forward declarations
 void ApplyConfig(HWND hwnd);
@@ -47,8 +48,7 @@ SetDebugLoggingEnabledFunc SetDebugLoggingEnabled = NULL;
 InitHookModuleFunc InitHookModule = NULL;
 CleanupHookModuleFunc CleanupHookModule = NULL;
 
-std::atomic<bool> g_debugEnabled{false}; // Global variable to control debug logging
-std::atomic<bool> g_trayIconEnabled{true}; // Global variable to control tray icon
+// Access shared application state instead of scattered globals
 bool g_cliMode = false;                     // Suppress GUI/tray behavior
 HWND g_hwnd = NULL;                // Handle to our message window
 std::unique_ptr<TrayIcon> g_trayIcon;
@@ -86,19 +86,20 @@ std::wstring GetVersionString() {
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
     auto debugVal = g_config.get(L"debug");
+    auto& state = GetAppState();
     bool newDebug = (debugVal && *debugVal == L"1");
-    if (newDebug != g_debugEnabled.load()) {
-        g_debugEnabled.store(newDebug);
+    if (newDebug != state.debugEnabled.load()) {
+        state.debugEnabled.store(newDebug);
         if (SetDebugLoggingEnabled)
-            SetDebugLoggingEnabled(g_debugEnabled.load());
+            SetDebugLoggingEnabled(state.debugEnabled.load());
     }
 
     bool tray = true;
     auto trayVal = g_config.get(L"tray_icon");
     if (trayVal)
         tray = *trayVal != L"0";
-    if (tray != g_trayIconEnabled.load()) {
-        g_trayIconEnabled.store(tray);
+    if (tray != state.trayIconEnabled.load()) {
+        state.trayIconEnabled.store(tray);
         if (tray) {
             if (hwnd)
                 g_trayIcon = std::make_unique<TrayIcon>(hwnd);
@@ -126,13 +127,13 @@ void ApplyConfig(HWND hwnd) {
 
     auto timeoutVal = g_config.get(L"temp_hotkey_timeout");
     if (timeoutVal) {
-        g_tempHotKeyTimeout =
-            std::wcstoul(timeoutVal->c_str(), nullptr, 10);
+        GetAppState().tempHotKeyTimeout.store(
+            std::wcstoul(timeoutVal->c_str(), nullptr, 10));
     }
 
     if (auto startupVal = g_config.get(L"startup")) {
         bool desired = *startupVal != L"0";
-        if (desired != g_startupEnabled) {
+        if (desired != GetAppState().startupEnabled.load()) {
             if (desired)
                 AddToStartup();
             else
@@ -142,13 +143,13 @@ void ApplyConfig(HWND hwnd) {
 
     if (auto langVal = g_config.get(L"language_hotkey")) {
         bool desired = *langVal != L"0";
-        if (desired != g_languageHotKeyEnabled.load())
+        if (desired != GetAppState().languageHotKeyEnabled.load())
             ToggleLanguageHotKey(hwnd, true, desired);
     }
 
     if (auto layoutVal = g_config.get(L"layout_hotkey")) {
         bool desired = *layoutVal != L"0";
-        if (desired != g_layoutHotKeyEnabled.load())
+        if (desired != GetAppState().layoutHotKeyEnabled.load())
             ToggleLayoutHotKey(hwnd, true, desired);
     }
 }
@@ -228,14 +229,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
             if (wcscmp(argv[i], L"--config") == 0 && i + 1 < argc) {
                 ++i; // skip the path argument
             } else if (wcscmp(argv[i], L"--no-tray") == 0) {
-                g_trayIconEnabled.store(false);
+                GetAppState().trayIconEnabled.store(false);
             } else if (wcscmp(argv[i], L"--tray-icon") == 0 && i + 1 < argc) {
                 g_config.set(L"tray_icon", argv[i + 1]);
-                g_trayIconEnabled.store(wcscmp(argv[i + 1], L"0") != 0);
+                GetAppState().trayIconEnabled.store(wcscmp(argv[i + 1], L"0") != 0);
                 ++i;
             } else if (wcscmp(argv[i], L"--temp-hotkey-timeout") == 0 && i + 1 < argc) {
                 g_config.set(L"temp_hotkey_timeout", argv[i + 1]);
-                g_tempHotKeyTimeout = std::wcstoul(argv[i + 1], nullptr, 10);
+                GetAppState().tempHotKeyTimeout.store(std::wcstoul(argv[i + 1], nullptr, 10));
                 ++i;
             } else if (wcscmp(argv[i], L"--log-path") == 0 && i + 1 < argc) {
                 g_config.set(L"log_path", argv[i + 1]);
@@ -262,17 +263,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 // Hotkey flag processed
             } else if (wcscmp(argv[i], L"--cli") == 0 || wcscmp(argv[i], L"--cli-mode") == 0) {
                 g_cliMode = true;
-                g_trayIconEnabled.store(false);
+                GetAppState().trayIconEnabled.store(false);
             } else if (wcscmp(argv[i], L"--verbose") == 0) {
                 g_verboseLogging = true;
-                if (!g_debugEnabled.load()) {
-                    g_debugEnabled.store(true);
+                if (!GetAppState().debugEnabled.load()) {
+                    GetAppState().debugEnabled.store(true);
                     if (SetDebugLoggingEnabled)
                         SetDebugLoggingEnabled(true);
                 }
             } else if (wcscmp(argv[i], L"--debug") == 0) {
-                if (!g_debugEnabled.load()) {
-                    g_debugEnabled.store(true);
+                if (!GetAppState().debugEnabled.load()) {
+                    GetAppState().debugEnabled.store(true);
                     if (SetDebugLoggingEnabled)
                         SetDebugLoggingEnabled(true);
                 }
@@ -364,13 +365,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     WriteLog(LogLevel::Info, L"Executable started.");
 
     // Check if the app is set to launch at startup
-    g_startupEnabled = IsStartupEnabled();
+    GetAppState().startupEnabled.store(IsStartupEnabled());
 
     // Check if Language HotKey is enabled
-    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
+    GetAppState().languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
 
     // Check if Layout HotKey is enabled
-    g_layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
+    GetAppState().layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
 
     // Register the window class
     const wchar_t CLASS_NAME[] = L"TrayIconWindowClass";
@@ -482,7 +483,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
     // Propagate current debug logging state to the DLL
-    SetDebugLoggingEnabled(g_debugEnabled.load());
+    SetDebugLoggingEnabled(GetAppState().debugEnabled.load());
 
         if (!InstallGlobalHook()) {
             WriteLog(LogLevel::Error, L"Failed to install global hook.");
@@ -496,8 +497,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
     // Update the shared memory values at startup
-    SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
-    SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
+    SetLanguageHotKeyEnabled(GetAppState().languageHotKeyEnabled.load());
+    SetLayoutHotKeyEnabled(GetAppState().layoutHotKeyEnabled.load());
 
         while (GetMessage(&msg, NULL, 0, 0)) {
             TranslateMessage(&msg);

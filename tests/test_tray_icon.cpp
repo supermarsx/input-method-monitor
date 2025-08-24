@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "../source/tray_icon.h"
 #include "../source/configuration.h"
+#include "../source/app_state.h"
 #include <set>
 #include <stdexcept>
 #include <atomic>
@@ -8,8 +9,6 @@
 
 // Provide definitions for globals expected by tray_icon
 HINSTANCE g_hInst = nullptr;
-std::atomic<bool> g_trayIconEnabled{true};
-
 // Stub for LoadImageW used by tray icon
 static std::wstring g_loadedPath;
 HANDLE DummyLoadImage(HINSTANCE, LPCWSTR path, UINT, int, int, UINT) {

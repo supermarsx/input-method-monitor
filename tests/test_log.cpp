@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "../source/log.h"
 #include "../source/configuration.h"
+#include "../source/app_state.h"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -11,10 +12,9 @@ using HINSTANCE = void*;
 #endif
 
 extern HINSTANCE g_hInst;
-extern std::atomic<bool> g_debugEnabled;
 
 TEST_CASE("Log switches files when path changes", "[log]") {
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_test";
@@ -50,7 +50,7 @@ TEST_CASE("Log switches files when path changes", "[log]") {
 }
 
 TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rotate_test";
@@ -79,7 +79,7 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
 }
 
 TEST_CASE("Log keeps only configured number of backups", "[log]") {
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_backup_limit";
@@ -111,7 +111,7 @@ TEST_CASE("Log keeps only configured number of backups", "[log]") {
 
 TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 #ifndef _WIN32
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rename_fail";
@@ -146,7 +146,7 @@ TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 }
 
 TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
 
     Log log(3, false); // small queue, do not start threads
     log.write(L"one");
@@ -161,7 +161,7 @@ TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
 
 #ifdef _WIN32
 TEST_CASE("Pipe listener handles messages larger than buffer", "[log][pipe]") {
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_pipe_log_test";

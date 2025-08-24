@@ -13,6 +13,7 @@ g++ -std=c++17 -DUNIT_TEST -I tests -I resources \
     tests/test_hotkey_registry.cpp tests/test_unknown_option.cpp tests/stubs.cpp \
     source/configuration.cpp source/log.cpp source/config_parser.cpp source/tray_icon.cpp \
     source/hotkey_registry.cpp source/hotkey_cli.cpp source/config_watcher.cpp source/cli_utils.cpp \
+    source/app_state.cpp \
     -o tests/run_tests \
     -lCatch2Main -lCatch2 -pthread
 ./tests/run_tests

@@ -1,7 +1,6 @@
-#include <atomic>
 #include <string>
+#include "../source/app_state.h"
 
-std::atomic<bool> g_debugEnabled{false};
 bool g_cliMode = false;
 std::wstring g_cliIconPath;
 std::wstring g_cliTrayTooltip;

@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "../source/tray_icon.h"
 #include "../source/configuration.h"
+#include "../source/app_state.h"
 #include <atomic>
 #include <memory>
 #include <set>
@@ -8,8 +9,6 @@
 
 // Globals provided elsewhere
 extern HINSTANCE g_hInst;
-extern std::atomic<bool> g_trayIconEnabled;
-extern std::atomic<bool> g_debugEnabled;
 extern std::unique_ptr<TrayIcon> g_trayIcon;
 
 // Stub LoadImageW to capture icon path

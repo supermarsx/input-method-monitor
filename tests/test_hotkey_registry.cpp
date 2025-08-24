@@ -2,6 +2,7 @@
 #include "../source/hotkey_registry.h"
 #include "../source/configuration.h"
 #include "../source/hotkey_cli.h"
+#include "../source/app_state.h"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -9,29 +10,26 @@
 #include <iterator>
 
 LONG g_RegSetValueExResult = ERROR_SUCCESS;
-extern std::atomic<bool> g_debugEnabled;
-extern UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC);
-extern BOOL (*pKillTimer)(HWND, UINT);
-std::atomic<bool> g_languageHotKeyEnabled{false};
-std::atomic<bool> g_layoutHotKeyEnabled{false};
 SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = nullptr;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = nullptr;
 DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD) = [](HINSTANCE, wchar_t*, DWORD) -> DWORD { return 0; };
 
 TEST_CASE("Startup registry flag toggles") {
-    g_startupEnabled = false;
+    auto& state = GetAppState();
+    state.startupEnabled.store(false);
     AddToStartup();
-    REQUIRE(g_startupEnabled);
+    REQUIRE(state.startupEnabled.load());
     RemoveFromStartup();
-    REQUIRE_FALSE(g_startupEnabled);
+    REQUIRE_FALSE(state.startupEnabled.load());
 }
 
 TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegSetValueEx failure") {
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
 
-    g_debugEnabled.store(true);
-    g_languageHotKeyEnabled.store(false);
+    auto& state = GetAppState();
+    state.debugEnabled.store(true);
+    state.languageHotKeyEnabled.store(false);
 
     fs::path logPath = fs::temp_directory_path() / "toggle_fail.log";
     g_config.set(L"log_path", logPath.wstring());
@@ -44,7 +42,7 @@ TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegSetValueEx 
     std::wifstream file(logPath);
     std::wstring content((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
     REQUIRE(content.find(L"Error: 5") != std::wstring::npos);
-    REQUIRE_FALSE(g_languageHotKeyEnabled.load());
+    REQUIRE_FALSE(state.languageHotKeyEnabled.load());
 
     g_RegSetValueExResult = ERROR_SUCCESS;
     g_config.set(L"log_path", L"");
@@ -55,10 +53,11 @@ TEST_CASE("TemporarilyEnableHotKeys logs error and preserves state on RegSetValu
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
 
-    g_debugEnabled.store(true);
-    g_tempHotKeysEnabled.store(false);
-    g_languageHotKeyEnabled.store(false);
-    g_layoutHotKeyEnabled.store(false);
+    auto& state = GetAppState();
+    state.debugEnabled.store(true);
+    state.tempHotKeysEnabled.store(false);
+    state.languageHotKeyEnabled.store(false);
+    state.layoutHotKeyEnabled.store(false);
 
     fs::path logPath = fs::temp_directory_path() / "temp_enable_fail.log";
     g_config.set(L"log_path", logPath.wstring());
@@ -71,9 +70,9 @@ TEST_CASE("TemporarilyEnableHotKeys logs error and preserves state on RegSetValu
     std::wifstream file(logPath);
     std::wstring content((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
     REQUIRE(content.find(L"Error: 5") != std::wstring::npos);
-    REQUIRE_FALSE(g_tempHotKeysEnabled.load());
-    REQUIRE_FALSE(g_languageHotKeyEnabled.load());
-    REQUIRE_FALSE(g_layoutHotKeyEnabled.load());
+    REQUIRE_FALSE(state.tempHotKeysEnabled.load());
+    REQUIRE_FALSE(state.languageHotKeyEnabled.load());
+    REQUIRE_FALSE(state.layoutHotKeyEnabled.load());
 
     g_RegSetValueExResult = ERROR_SUCCESS;
     g_config.set(L"log_path", L"");
@@ -83,30 +82,34 @@ TEST_CASE("TemporarilyEnableHotKeys logs error and preserves state on RegSetValu
 TEST_CASE("DisableLanguageHotKey sets flag to disabled") {
     g_RegSetValueExResult = ERROR_SUCCESS;
     ToggleLanguageHotKey(nullptr, true, true);
-    REQUIRE(g_languageHotKeyEnabled.load());
+    auto& state = GetAppState();
+    REQUIRE(state.languageHotKeyEnabled.load());
     ToggleLanguageHotKey(nullptr, true, false);
-    REQUIRE_FALSE(g_languageHotKeyEnabled.load());
+    REQUIRE_FALSE(state.languageHotKeyEnabled.load());
 }
 
 TEST_CASE("EnableLayoutHotKey sets flag to enabled") {
     g_RegSetValueExResult = ERROR_SUCCESS;
     ToggleLayoutHotKey(nullptr, true, false);
-    REQUIRE_FALSE(g_layoutHotKeyEnabled.load());
+    auto& state = GetAppState();
+    REQUIRE_FALSE(state.layoutHotKeyEnabled.load());
     ToggleLayoutHotKey(nullptr, true, true);
-    REQUIRE(g_layoutHotKeyEnabled.load());
+    REQUIRE(state.layoutHotKeyEnabled.load());
 }
 
 TEST_CASE("Command line flag disables Language hotkey") {
     g_RegSetValueExResult = ERROR_SUCCESS;
-    g_languageHotKeyEnabled.store(true);
+    auto& state = GetAppState();
+    state.languageHotKeyEnabled.store(true);
     REQUIRE(HandleHotkeyFlag(L"--disable-language-hotkey"));
-    REQUIRE_FALSE(g_languageHotKeyEnabled.load());
+    REQUIRE_FALSE(state.languageHotKeyEnabled.load());
 }
 
 TEST_CASE("Command line flag enables Layout hotkey") {
     g_RegSetValueExResult = ERROR_SUCCESS;
-    g_layoutHotKeyEnabled.store(false);
+    auto& state = GetAppState();
+    state.layoutHotKeyEnabled.store(false);
     REQUIRE(HandleHotkeyFlag(L"--enable-layout-hotkey"));
-    REQUIRE(g_layoutHotKeyEnabled.load());
+    REQUIRE(state.layoutHotKeyEnabled.load());
 }
 

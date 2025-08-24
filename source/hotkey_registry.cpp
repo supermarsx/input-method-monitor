@@ -3,19 +3,11 @@
 #include "utils.h"
 #include "winreg_handle.h"
 #include "configuration.h"
+#include "app_state.h"
 #include <sstream>
 #include <memory>
 
-// Global variable definitions
-bool g_startupEnabled = false;
-#ifndef UNIT_TEST
-std::atomic<bool> g_languageHotKeyEnabled{false};
-std::atomic<bool> g_layoutHotKeyEnabled{false};
-#endif
-std::atomic<bool> g_tempHotKeysEnabled{false};
-DWORD g_tempHotKeyTimeout = 10000;
 constexpr UINT TEMP_HOTKEY_TIMER_ID = 1;
-std::unique_ptr<TimerGuard> g_tempHotKeyTimer;
 
 // Helper function to check if app is set to launch at startup
 bool IsStartupEnabled() {
@@ -47,7 +39,7 @@ void AddToStartup() {
                        reinterpret_cast<const BYTE*>(quotedPath.c_str()),
                        (quotedPath.size() + 1) * sizeof(wchar_t));
         WriteLog(LogLevel::Info, L"Added to startup.");
-        g_startupEnabled = true;
+        GetAppState().startupEnabled.store(true);
     } else {
         WriteLog(LogLevel::Error, L"Failed to add to startup.");
     }
@@ -62,7 +54,7 @@ void RemoveFromStartup() {
     if (result == ERROR_SUCCESS) {
         RegDeleteValue(hKey.get(), L"kbdlayoutmon");
         WriteLog(LogLevel::Info, L"Removed from startup.");
-        g_startupEnabled = false;
+        GetAppState().startupEnabled.store(false);
     } else {
         WriteLog(LogLevel::Error, L"Failed to remove from startup.");
     }
@@ -148,22 +140,25 @@ static void ToggleHotKey(HWND hwnd, const wchar_t* valueName,
     }
 }
 
-void ToggleLanguageHotKey(HWND hwnd, bool overrideState, bool state) {
-    g_languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
-    ToggleHotKey(hwnd, L"Language HotKey", g_languageHotKeyEnabled, L"3", L"1",
-                 SetLanguageHotKeyEnabled, overrideState, state);
+void ToggleLanguageHotKey(HWND hwnd, bool overrideState, bool desiredState) {
+    auto& app = GetAppState();
+    app.languageHotKeyEnabled.store(IsLanguageHotKeyEnabled());
+    ToggleHotKey(hwnd, L"Language HotKey", app.languageHotKeyEnabled, L"3", L"1",
+                 SetLanguageHotKeyEnabled, overrideState, desiredState);
 }
 
-void ToggleLayoutHotKey(HWND hwnd, bool overrideState, bool state) {
-    g_layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
-    ToggleHotKey(hwnd, L"Layout HotKey", g_layoutHotKeyEnabled, L"3", L"2",
-                 SetLayoutHotKeyEnabled, overrideState, state);
+void ToggleLayoutHotKey(HWND hwnd, bool overrideState, bool desiredState) {
+    auto& app = GetAppState();
+    app.layoutHotKeyEnabled.store(IsLayoutHotKeyEnabled());
+    ToggleHotKey(hwnd, L"Layout HotKey", app.layoutHotKeyEnabled, L"3", L"2",
+                 SetLayoutHotKeyEnabled, overrideState, desiredState);
 }
 
 void TemporarilyEnableHotKeys(HWND hwnd) {
     WriteLog(LogLevel::Info, L"TemporarilyEnableHotKeys called.");
 
-    if (g_tempHotKeysEnabled.load()) {
+    auto& state = GetAppState();
+    if (state.tempHotKeysEnabled.load()) {
         WriteLog(LogLevel::Warn, L"TemporarilyEnableHotKeys already enabled. Skipping.");
         return; // Avoid repeated enabling
     }
@@ -194,37 +189,44 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
 
         WriteLog(LogLevel::Info, L"Temporarily enabled hotkeys.");
 
-        g_tempHotKeysEnabled.store(true);
+    state.tempHotKeysEnabled.store(true);
 
-        // Update the global status
-        g_languageHotKeyEnabled.store(true);
-        g_layoutHotKeyEnabled.store(true);
+    // Update the global status
+    state.languageHotKeyEnabled.store(true);
+    state.layoutHotKeyEnabled.store(true);
 
-        // Update the shared memory values
-        SetLanguageHotKeyEnabled(g_languageHotKeyEnabled.load());
-        SetLayoutHotKeyEnabled(g_layoutHotKeyEnabled.load());
+    // Update the shared memory values
+    SetLanguageHotKeyEnabled(state.languageHotKeyEnabled.load());
+    SetLayoutHotKeyEnabled(state.layoutHotKeyEnabled.load());
 
-        // Set a timer to revert changes after configured timeout
-        auto timer = std::make_unique<TimerGuard>(hwnd, TEMP_HOTKEY_TIMER_ID,
-                                                 g_tempHotKeyTimeout, nullptr);
-        if (*timer) {
-            g_tempHotKeyTimer = std::move(timer);
-        } else {
-            WriteLog(LogLevel::Error, L"Failed to set timer for temporarily enabling hotkeys.");
-            ToggleLanguageHotKey(hwnd, true, false);
-            ToggleLayoutHotKey(hwnd, true, false);
-            g_tempHotKeysEnabled.store(false);
+    // Set a timer to revert changes after configured timeout
+    auto timer = std::make_unique<TimerGuard>(hwnd, TEMP_HOTKEY_TIMER_ID,
+                                             state.tempHotKeyTimeout.load(), nullptr);
+    if (*timer) {
+        {
+            std::lock_guard<std::mutex> lock(state.tempHotKeyTimerMutex);
+            state.tempHotKeyTimer = std::move(timer);
         }
+    } else {
+        WriteLog(LogLevel::Error, L"Failed to set timer for temporarily enabling hotkeys.");
+        ToggleLanguageHotKey(hwnd, true, false);
+        ToggleLayoutHotKey(hwnd, true, false);
+        state.tempHotKeysEnabled.store(false);
+    }
     } else {
         WriteLog(LogLevel::Error, L"Failed to open registry key for temporarily enabling hotkeys.");
     }
 }
 
 void OnTimer(HWND hwnd) {
-    if (g_tempHotKeysEnabled.load()) {
+    auto& state = GetAppState();
+    if (state.tempHotKeysEnabled.load()) {
         ToggleLanguageHotKey(hwnd, true, false);
         ToggleLayoutHotKey(hwnd, true, false);
-        g_tempHotKeysEnabled.store(false);
+        state.tempHotKeysEnabled.store(false);
     }
-    g_tempHotKeyTimer.reset();
+    {
+        std::lock_guard<std::mutex> lock(state.tempHotKeyTimerMutex);
+        state.tempHotKeyTimer.reset();
+    }
 }

@@ -18,6 +18,7 @@ if(WIN32)
 add_executable(kbdlayoutmon
     source/kbdlayoutmon.cpp
     ${COMMON_SOURCES}
+    source/app_state.cpp
     source/config_watcher.cpp
     source/log.cpp
     source/tray_icon.cpp
@@ -81,6 +82,7 @@ set(RUN_SOURCES
     source/log.cpp
     source/configuration.cpp
     source/config_parser.cpp
+    source/app_state.cpp
 )
 
 if(WIN32)
