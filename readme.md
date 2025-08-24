@@ -60,6 +60,8 @@ configuration file. Use `--help` to display a summary at runtime:
 --tray-icon <0|1>         Override tray icon setting
 --temp-hotkey-timeout <ms>  Override temporary hotkey timeout
 --log-path <path>         Override log file location
+--icon-path <path>        Override tray icon image
+--tray-tooltip <text>     Override tray icon tooltip
 --max-log-size-mb <num>   Override maximum log size
 --max-queue-size <num>    Override maximum queued log messages
 --enable-startup          Add the application to user startup

@@ -15,6 +15,10 @@
 extern Configuration g_config;
 #endif
 
+// Command-line overrides populated by kbdlayoutmon.cpp
+extern std::wstring g_cliIconPath;
+extern std::wstring g_cliTrayTooltip;
+
 BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA) = ::Shell_NotifyIcon;
 
 TrayIcon::TrayIcon(HWND hwnd) {
@@ -26,20 +30,30 @@ TrayIcon::TrayIcon(HWND hwnd) {
     nid_.uID = 1;
     nid_.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid_.uCallbackMessage = WM_TRAYICON;
-    // Load icon from configuration if provided, otherwise fall back to resource
-    auto iconVal = g_config.get(L"icon_path");
-    if (iconVal && !iconVal->empty()) {
+    // Determine icon path, preferring command-line override when present
+    std::wstring iconPath = g_cliIconPath;
+    if (iconPath.empty()) {
+        auto iconVal = g_config.get(L"icon_path");
+        if (iconVal && !iconVal->empty())
+            iconPath = *iconVal;
+    }
+    if (!iconPath.empty()) {
         nid_.hIcon = reinterpret_cast<HICON>(
-            LoadImageW(nullptr, iconVal->c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
+            LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
     }
     if (!nid_.hIcon) {
         nid_.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
     }
 
-    // Set tray tooltip from configuration or use default name
-    auto tipVal = g_config.get(L"tray_tooltip");
-    if (tipVal && !tipVal->empty()) {
-        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), tipVal->c_str());
+    // Set tray tooltip from override/config or use default name
+    std::wstring tip = g_cliTrayTooltip;
+    if (tip.empty()) {
+        auto tipVal = g_config.get(L"tray_tooltip");
+        if (tipVal && !tipVal->empty())
+            tip = *tipVal;
+    }
+    if (!tip.empty()) {
+        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), tip.c_str());
     } else {
         wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), L"kbdlayoutmon");
     }
@@ -56,18 +70,22 @@ TrayIcon::~TrayIcon() {
 void TrayIcon::Update(const std::wstring& iconPath, const std::wstring& tooltip) {
     if (!added_) return;
 
+    // Prefer CLI overrides over provided parameters
+    std::wstring finalIcon = g_cliIconPath.empty() ? iconPath : g_cliIconPath;
+    std::wstring finalTip = g_cliTrayTooltip.empty() ? tooltip : g_cliTrayTooltip;
+
     HICON hIcon = nullptr;
-    if (!iconPath.empty()) {
+    if (!finalIcon.empty()) {
         hIcon = reinterpret_cast<HICON>(
-            LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
+            LoadImageW(nullptr, finalIcon.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
     }
     if (!hIcon) {
         hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
     }
     nid_.hIcon = hIcon;
 
-    if (!tooltip.empty()) {
-        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), tooltip.c_str());
+    if (!finalTip.empty()) {
+        wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), finalTip.c_str());
     } else {
         wcscpy_s(nid_.szTip, ARRAYSIZE(nid_.szTip), L"kbdlayoutmon");
     }
