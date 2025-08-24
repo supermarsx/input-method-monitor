@@ -20,6 +20,7 @@ inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); 
 #include <atomic>
 #include <vector>
 #include "configuration.h"
+#include "app_state.h"
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
 std::atomic<bool> g_verboseLogging{false};
@@ -52,9 +53,8 @@ std::wstring GetLogPath() {
 /// Global log instance used by the executable and DLL.
 Log g_log;
 
-extern std::atomic<bool> g_debugEnabled;
 extern "C" void SetDebugLoggingEnabled(bool enabled) {
-    g_debugEnabled.store(enabled);
+    GetAppState().debugEnabled.store(enabled);
 }
 
 namespace {
@@ -131,7 +131,7 @@ void Log::shutdown() {
 }
 
 void Log::write(LogLevel level, const std::wstring& message) {
-    if (!g_debugEnabled.load())
+    if (!GetAppState().debugEnabled.load())
         return;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -184,9 +184,9 @@ void Log::process() {
 
     auto logError = [this](const wchar_t* msg) {
         ++m_suppress;
-        bool prev = g_debugEnabled.exchange(true);
+        bool prev = GetAppState().debugEnabled.exchange(true);
         this->write(LogLevel::Error, msg);
-        g_debugEnabled.store(prev);
+        GetAppState().debugEnabled.store(prev);
     };
     for (;;) {
         std::unique_lock<std::mutex> lock(m_mutex);

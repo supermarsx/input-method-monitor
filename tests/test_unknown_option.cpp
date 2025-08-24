@@ -6,15 +6,15 @@
 #include <atomic>
 #include "../source/cli_utils.h"
 #include "../source/configuration.h"
+#include "../source/app_state.h"
 
-extern std::atomic<bool> g_debugEnabled;
 extern bool g_cliMode;
 
 TEST_CASE("WarnUnrecognizedOption logs error") {
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
 
-    g_debugEnabled.store(true);
+    GetAppState().debugEnabled.store(true);
     g_cliMode = true;
 
     fs::path logPath = fs::temp_directory_path() / "unknown_option.log";

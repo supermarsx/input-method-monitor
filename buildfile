@@ -9,6 +9,7 @@ exe{kbdlayoutmon}: \
   source/cli_utils.cpp \
   source/configuration.cpp \
   source/config_parser.cpp \
+  source/app_state.cpp \
   source/log.cpp \
   resources/res-icon.rc \
   resources/res-versioninfo.rc \
@@ -29,7 +30,8 @@ exe{run_tests}: \
   source/log.cpp \
   source/configuration.cpp \
   source/config_parser.cpp \
-  source/cli_utils.cpp
+  source/cli_utils.cpp \
+  source/app_state.cpp
 
 # Register test target
 test{run_tests}

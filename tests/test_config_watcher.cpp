@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cstring>
 #include <atomic>
+#include "../source/app_state.h"
 
 #define _WIN32
 #include "windows.h"
@@ -19,7 +20,6 @@ void ApplyConfig(HWND) { ++applyCalls; }
 static HANDLE g_stopHandle = nullptr;
 static bool stopSignaled = false;
 int g_sleepCalls = 0;
-std::atomic<bool> g_debugEnabled{false};
 HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR) = [](void*, BOOL, BOOL, LPCWSTR){
     static intptr_t next = 1;
     return reinterpret_cast<HANDLE>(next++);

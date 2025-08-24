@@ -1,12 +1,11 @@
 #pragma once
 #include <windows.h>
-#include <atomic>
 #include <string>
+
+#include "app_state.h"
 
 // Extern declarations for shared state
 extern HINSTANCE g_hInst;
-extern std::atomic<bool> g_trayIconEnabled;
-extern std::atomic<bool> g_debugEnabled;
 
 // Message and menu identifiers
 constexpr UINT WM_TRAYICON = WM_USER + 1;

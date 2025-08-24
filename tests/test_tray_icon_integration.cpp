@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "../source/tray_icon.h"
 #include "../source/configuration.h"
+#include "../source/app_state.h"
 #include <set>
 #include <atomic>
 #include <memory>
@@ -9,8 +10,6 @@
 
 // Globals expected by tray_icon and kbdlayoutmon
 extern HINSTANCE g_hInst;
-extern std::atomic<bool> g_trayIconEnabled;
-extern std::atomic<bool> g_debugEnabled;
 std::unique_ptr<TrayIcon> g_trayIcon;
 extern std::wstring g_cliIconPath;
 extern std::wstring g_cliTrayTooltip;
@@ -62,7 +61,7 @@ TEST_CASE("Tray icon removed on early exit") {
 
 // Minimal ApplyConfig used for override testing
 static void ApplyConfigTest(HWND hwnd) {
-    if (!g_trayIconEnabled.load()) return;
+    if (!GetAppState().trayIconEnabled.load()) return;
     auto iconVal = g_config.get(L"icon_path");
     auto tipVal = g_config.get(L"tray_tooltip");
     std::wstring icon = iconVal ? *iconVal : L"";

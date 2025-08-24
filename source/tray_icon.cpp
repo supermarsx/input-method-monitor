@@ -5,6 +5,7 @@
 #include "constants.h"
 #include "log.h"
 #include "utils.h"
+#include "app_state.h"
 
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(A) (sizeof(A) / sizeof((A)[0]))
@@ -22,7 +23,7 @@ extern std::wstring g_cliTrayTooltip;
 BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA) = ::Shell_NotifyIcon;
 
 TrayIcon::TrayIcon(HWND hwnd) {
-    if (!g_trayIconEnabled.load()) return;
+    if (!GetAppState().trayIconEnabled.load()) return;
 
     ZeroMemory(&nid_, sizeof(nid_));
     nid_.cbSize = sizeof(NOTIFYICONDATA);
@@ -95,7 +96,7 @@ void TrayIcon::Update(const std::wstring& iconPath, const std::wstring& tooltip)
 
 #ifndef UNIT_TEST
 void ShowTrayMenu(HWND hwnd) {
-    if (!g_trayIconEnabled.load()) return;
+    if (!GetAppState().trayIconEnabled.load()) return;
 
     POINT pt;
     GetCursorPos(&pt);
@@ -109,13 +110,14 @@ void ShowTrayMenu(HWND hwnd) {
     InsertMenuItem(hMenu, ID_TRAY_APP_NAME, TRUE, &mii);
     InsertMenu(hMenu, 1, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
 
-    InsertMenu(hMenu, 2, MF_BYPOSITION | MF_STRING | (g_startupEnabled ? MF_CHECKED : 0), ID_TRAY_STARTUP, L"Launch at startup");
-    InsertMenu(hMenu, 3, MF_BYPOSITION | MF_STRING | (g_languageHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LANGUAGE, L"Toggle Language HotKey");
-    InsertMenu(hMenu, 4, MF_BYPOSITION | MF_STRING | (g_layoutHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LAYOUT, L"Toggle Layout HotKey");
+    auto& state = GetAppState();
+    InsertMenu(hMenu, 2, MF_BYPOSITION | MF_STRING | (state.startupEnabled.load() ? MF_CHECKED : 0), ID_TRAY_STARTUP, L"Launch at startup");
+    InsertMenu(hMenu, 3, MF_BYPOSITION | MF_STRING | (state.languageHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LANGUAGE, L"Toggle Language HotKey");
+    InsertMenu(hMenu, 4, MF_BYPOSITION | MF_STRING | (state.layoutHotKeyEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_LAYOUT, L"Toggle Layout HotKey");
     InsertMenu(hMenu, 5, MF_BYPOSITION | MF_STRING, ID_TRAY_TEMP_ENABLE_HOTKEYS, L"Temporarily Enable HotKeys");
     InsertMenu(hMenu, 6, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_LOG, L"Open Log File");
     InsertMenu(hMenu, 7, MF_BYPOSITION | MF_STRING, ID_TRAY_OPEN_CONFIG, L"Open Config File");
-    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING | (g_debugEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
+    InsertMenu(hMenu, 8, MF_BYPOSITION | MF_STRING | (state.debugEnabled.load() ? MF_CHECKED : 0), ID_TRAY_TOGGLE_DEBUG, L"Debug Logging");
     InsertMenu(hMenu, 9, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
     InsertMenu(hMenu, 10, MF_BYPOSITION | MF_STRING, ID_TRAY_RESTART, L"Restart");
     InsertMenu(hMenu, 11, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Quit");
@@ -135,7 +137,7 @@ void HandleTrayCommand(HWND hwnd, WPARAM wParam) {
             PostQuitMessage(0);
             break;
         case ID_TRAY_STARTUP:
-            if (g_startupEnabled) {
+            if (GetAppState().startupEnabled.load()) {
                 RemoveFromStartup();
             } else {
                 AddToStartup();
@@ -180,13 +182,13 @@ void HandleTrayCommand(HWND hwnd, WPARAM wParam) {
             break;
         }
         case ID_TRAY_TOGGLE_DEBUG:
-            if (g_debugEnabled.load()) {
+            if (GetAppState().debugEnabled.load()) {
                 WriteLog(LogLevel::Info, L"Debug logging disabled.");
-                g_debugEnabled.store(false);
+                GetAppState().debugEnabled.store(false);
                 if (SetDebugLoggingEnabled)
                     SetDebugLoggingEnabled(false);
             } else {
-                g_debugEnabled.store(true);
+                GetAppState().debugEnabled.store(true);
                 if (SetDebugLoggingEnabled)
                     SetDebugLoggingEnabled(true);
                 WriteLog(LogLevel::Info, L"Debug logging enabled.");
