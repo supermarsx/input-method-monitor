@@ -13,6 +13,8 @@
 #include <limits.h>
 
 void ApplyConfig(HWND);
+// Optional hook for tests to observe configuration reloads.
+void (*g_testApplyConfig)(HWND) = nullptr;
 
 ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
     m_thread = std::thread(&ConfigWatcher::threadProc, this);
@@ -20,12 +22,12 @@ ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
 
 ConfigWatcher::~ConfigWatcher() {
     m_stop = true;
-    if (m_thread.joinable())
-        m_thread.join();
     if (m_wd >= 0)
         inotify_rm_watch(m_fd, m_wd);
     if (m_fd >= 0)
         close(m_fd);
+    if (m_thread.joinable())
+        m_thread.join();
 }
 
 void ConfigWatcher::threadProc() {
@@ -58,14 +60,13 @@ void ConfigWatcher::threadProc() {
             if (ev->mask & (IN_CLOSE_WRITE | IN_MOVED_TO | IN_MOVED_FROM)) {
                 g_config.load();
                 ApplyConfig(m_hwnd);
+                if (g_testApplyConfig)
+                    g_testApplyConfig(m_hwnd);
                 WriteLog(LogLevel::Info, L"Configuration reloaded.");
             }
             ptr += sizeof(struct inotify_event) + ev->len;
         }
     }
 }
-
-// Stub ApplyConfig for non-Windows builds
-void ApplyConfig(HWND) {}
 
 #endif // !_WIN32
