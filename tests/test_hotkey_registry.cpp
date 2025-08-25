@@ -3,6 +3,7 @@
 #include "../source/configuration.h"
 #include "../source/hotkey_cli.h"
 #include "../source/app_state.h"
+#include "../source/log.h"
 #include <filesystem>
 #include <fstream>
 #include <chrono>
@@ -32,6 +33,7 @@ TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegSetValueEx 
     auto& state = GetAppState();
     state.debugEnabled.store(true);
     state.languageHotKeyEnabled.store(false);
+    g_logLevel.store(LogLevel::Info);
 
     fs::path logPath = fs::temp_directory_path() / "toggle_fail.log";
     g_config.set(L"log_path", logPath.wstring());
@@ -58,6 +60,7 @@ TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegOpenKeyEx f
     auto& state = GetAppState();
     state.debugEnabled.store(true);
     state.languageHotKeyEnabled.store(false);
+    g_logLevel.store(LogLevel::Info);
 
     fs::path logPath = fs::temp_directory_path() / "toggle_open_fail.log";
     g_config.set(L"log_path", logPath.wstring());
@@ -88,6 +91,7 @@ TEST_CASE("TemporarilyEnableHotKeys logs error and preserves state on RegSetValu
     state.tempHotKeysEnabled.store(false);
     state.languageHotKeyEnabled.store(false);
     state.layoutHotKeyEnabled.store(false);
+    g_logLevel.store(LogLevel::Info);
 
     fs::path logPath = fs::temp_directory_path() / "temp_enable_fail.log";
     g_config.set(L"log_path", logPath.wstring());

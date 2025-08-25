@@ -20,6 +20,7 @@ std::wstring GetUsageString() {
         L"  --tray-icon <0|1>        Override tray icon setting\n"
         L"  --temp-hotkey-timeout <ms>  Override temporary hotkey timeout\n"
         L"  --log-path <path>          Override log file location\n"
+        L"  --log-level <info|warn|error>  Set minimum log level\n"
         L"  --icon-path <path>         Override tray icon image\n"
         L"  --tray-tooltip <text>      Override tray icon tooltip\n"
         L"  --max-log-size-mb <num>    Override max log size\n"

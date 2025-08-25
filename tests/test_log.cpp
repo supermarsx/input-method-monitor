@@ -15,6 +15,7 @@ extern HINSTANCE g_hInst;
 
 TEST_CASE("Log switches files when path changes", "[log]") {
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_test";
@@ -51,6 +52,7 @@ TEST_CASE("Log switches files when path changes", "[log]") {
 
 TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rotate_test";
@@ -80,6 +82,7 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
 
 TEST_CASE("Log keeps only configured number of backups", "[log]") {
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_backup_limit";
@@ -112,6 +115,7 @@ TEST_CASE("Log keeps only configured number of backups", "[log]") {
 TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 #ifndef _WIN32
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rename_fail";
@@ -147,6 +151,7 @@ TEST_CASE("Log reports error when rotation rename fails", "[log]") {
 
 TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
 
     Log log(3, false); // small queue, do not start threads
     log.write(L"one");
@@ -159,9 +164,24 @@ TEST_CASE("Log drops oldest messages when queue limit exceeded", "[log]") {
     REQUIRE(log.peekOldest() == L"three");
 }
 
+TEST_CASE("Log honors global log level threshold", "[log]") {
+    GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Warn);
+
+    Log log(5, false);
+    log.write(LogLevel::Info, L"info");
+    log.write(LogLevel::Warn, L"warn");
+
+    REQUIRE(log.queueSize() == 1);
+    REQUIRE(log.peekOldest() == L"warn");
+
+    g_logLevel.store(LogLevel::Info);
+}
+
 #ifdef _WIN32
 TEST_CASE("Pipe listener handles messages larger than buffer", "[log][pipe]") {
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_pipe_log_test";

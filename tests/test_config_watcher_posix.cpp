@@ -8,6 +8,7 @@
 #include "../source/config_watcher_posix.h"
 #include "../source/configuration.h"
 #include "../source/app_state.h"
+#include "../source/log.h"
 
 extern void (*g_testApplyConfig)(HWND);
 
@@ -21,7 +22,9 @@ TEST_CASE("ConfigWatcher reloads on file changes", "[config_watcher][posix]") {
     namespace fs = std::filesystem;
 
     bool prevDebug = GetAppState().debugEnabled.load();
+    auto prevLevel = g_logLevel.load();
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
 
     fs::path dir = fs::temp_directory_path() / "immon_cfgwatch_posix";
     fs::create_directories(dir);
@@ -81,5 +84,6 @@ TEST_CASE("ConfigWatcher reloads on file changes", "[config_watcher][posix]") {
     fs::remove_all(dir);
     g_config.set(L"log_path", L"");
     GetAppState().debugEnabled.store(prevDebug);
+    g_logLevel.store(prevLevel);
 }
 #endif
