@@ -125,3 +125,6 @@ extern "C" void SetDebugLoggingEnabled(bool enabled);
 
 /// Global flag controlling verbose console output.
 extern std::atomic<bool> g_verboseLogging;
+
+/// Minimum severity that will be recorded in the log.
+extern std::atomic<LogLevel> g_logLevel;

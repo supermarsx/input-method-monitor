@@ -24,6 +24,7 @@ inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); 
 
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
 std::atomic<bool> g_verboseLogging{false};
+std::atomic<LogLevel> g_logLevel{LogLevel::Info};
 
 namespace {
 std::wstring GetLogPath() {
@@ -132,6 +133,8 @@ void Log::shutdown() {
 
 void Log::write(LogLevel level, const std::wstring& message) {
     if (!GetAppState().debugEnabled.load())
+        return;
+    if (level < g_logLevel.load())
         return;
     {
         std::lock_guard<std::mutex> lock(m_mutex);

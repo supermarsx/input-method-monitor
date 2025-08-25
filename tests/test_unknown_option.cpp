@@ -7,6 +7,7 @@
 #include "../source/cli_utils.h"
 #include "../source/configuration.h"
 #include "../source/app_state.h"
+#include "../source/log.h"
 
 extern bool g_cliMode;
 
@@ -15,6 +16,7 @@ TEST_CASE("WarnUnrecognizedOption logs error") {
     namespace fs = std::filesystem;
 
     GetAppState().debugEnabled.store(true);
+    g_logLevel.store(LogLevel::Info);
     g_cliMode = true;
 
     fs::path logPath = fs::temp_directory_path() / "unknown_option.log";

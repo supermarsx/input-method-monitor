@@ -26,6 +26,7 @@ LANGUAGE_HOTKEY=1   # Enable the Windows "Language" hotkey
 LAYOUT_HOTKEY=1     # Enable the Windows "Layout" hotkey
 TEMP_HOTKEY_TIMEOUT=10000 # Milliseconds for temporary hotkeys to remain enabled
 LOG_PATH=path\to\logfile # Optional custom log file location
+LOG_LEVEL=info   # Minimum severity to log (info, warn, error)
 MAX_LOG_SIZE_MB=10 # Rotate log when it exceeds this size in megabytes
 MAX_LOG_BACKUPS=5 # Number of rotated log files to keep
 MAX_QUEUE_SIZE=1000 # Maximum number of log messages buffered before dropping oldest
@@ -60,6 +61,7 @@ configuration file. Use `--help` to display a summary at runtime:
 --tray-icon <0|1>         Override tray icon setting
 --temp-hotkey-timeout <ms>  Override temporary hotkey timeout
 --log-path <path>         Override log file location
+--log-level <info|warn|error>  Set minimum log level
 --icon-path <path>        Override tray icon image
 --tray-tooltip <text>     Override tray icon tooltip
 --max-log-size-mb <num>   Override maximum log size

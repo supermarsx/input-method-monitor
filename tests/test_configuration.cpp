@@ -17,6 +17,7 @@ TEST_CASE("Valid entries are parsed", "[config]") {
         L"TRAY_ICON=0",
         L"Temp_Hotkey_TimeOut=5000",
         L"LOG_PATH=C:/tmp/log.txt",
+        L"LOG_LEVEL=warn",
         L"MAX_LOG_SIZE_MB=5",
         L"MAX_QUEUE_SIZE=2000",
         L"ICON_PATH=C:/icons/app.ico",
@@ -27,6 +28,7 @@ TEST_CASE("Valid entries are parsed", "[config]") {
     REQUIRE(settings[L"tray_icon"] == L"0");
     REQUIRE(settings[L"temp_hotkey_timeout"] == L"5000");
     REQUIRE(settings[L"log_path"] == L"C:/tmp/log.txt");
+    REQUIRE(settings[L"log_level"] == L"warn");
     REQUIRE(settings[L"max_log_size_mb"] == L"5");
     REQUIRE(settings[L"max_queue_size"] == L"2000");
     REQUIRE(settings[L"icon_path"] == L"C:/icons/app.ico");

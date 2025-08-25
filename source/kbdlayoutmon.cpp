@@ -5,6 +5,8 @@
 #include <shlwapi.h>
 #include <atomic>
 #include <sstream>
+#include <algorithm>
+#include <cwctype>
 #include <shellapi.h>
 #include <vector>
 #include <memory>
@@ -85,6 +87,20 @@ std::wstring GetVersionString() {
 
 // Apply configuration values to runtime settings
 void ApplyConfig(HWND hwnd) {
+    auto levelVal = g_config.get(L"log_level");
+    if (levelVal) {
+        std::wstring lvl = *levelVal;
+        std::transform(lvl.begin(), lvl.end(), lvl.begin(), ::towlower);
+        if (lvl == L"warn")
+            g_logLevel.store(LogLevel::Warn);
+        else if (lvl == L"error")
+            g_logLevel.store(LogLevel::Error);
+        else
+            g_logLevel.store(LogLevel::Info);
+    } else {
+        g_logLevel.store(LogLevel::Info);
+    }
+
     auto debugVal = g_config.get(L"debug");
     auto& state = GetAppState();
     bool newDebug = (debugVal && *debugVal == L"1");
@@ -240,6 +256,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
                 ++i;
             } else if (wcscmp(argv[i], L"--log-path") == 0 && i + 1 < argc) {
                 g_config.set(L"log_path", argv[i + 1]);
+                ++i;
+            } else if (wcscmp(argv[i], L"--log-level") == 0 && i + 1 < argc) {
+                g_config.set(L"log_level", argv[i + 1]);
                 ++i;
             } else if (wcscmp(argv[i], L"--icon-path") == 0 && i + 1 < argc) {
                 g_config.set(L"icon_path", argv[i + 1]);
