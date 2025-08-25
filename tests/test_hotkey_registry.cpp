@@ -9,6 +9,8 @@
 #include <thread>
 #include <iterator>
 
+LONG g_RegOpenKeyExResult = ERROR_SUCCESS;
+bool g_RegOpenKeyExFailOnSetValue = false;
 LONG g_RegSetValueExResult = ERROR_SUCCESS;
 SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = nullptr;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = nullptr;
@@ -45,6 +47,34 @@ TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegSetValueEx 
     REQUIRE_FALSE(state.languageHotKeyEnabled.load());
 
     g_RegSetValueExResult = ERROR_SUCCESS;
+    g_config.set(L"log_path", L"");
+    fs::remove(logPath);
+}
+
+TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegOpenKeyEx failure") {
+    using namespace std::chrono_literals;
+    namespace fs = std::filesystem;
+
+    auto& state = GetAppState();
+    state.debugEnabled.store(true);
+    state.languageHotKeyEnabled.store(false);
+
+    fs::path logPath = fs::temp_directory_path() / "toggle_open_fail.log";
+    g_config.set(L"log_path", logPath.wstring());
+
+    g_RegOpenKeyExResult = 5; // simulate failure
+    g_RegOpenKeyExFailOnSetValue = true;
+    ToggleLanguageHotKey(nullptr);
+
+    std::this_thread::sleep_for(200ms);
+
+    std::wifstream file(logPath);
+    std::wstring content((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
+    REQUIRE(content.find(L"Error: 5") != std::wstring::npos);
+    REQUIRE_FALSE(state.languageHotKeyEnabled.load());
+
+    g_RegOpenKeyExResult = ERROR_SUCCESS;
+    g_RegOpenKeyExFailOnSetValue = false;
     g_config.set(L"log_path", L"");
     fs::remove(logPath);
 }

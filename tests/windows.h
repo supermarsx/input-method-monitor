@@ -204,7 +204,14 @@ inline DWORD GetModuleFileNameW(HINSTANCE inst, wchar_t* buffer, DWORD size) { r
 inline HANDLE LoadImageW(HINSTANCE a, LPCWSTR b, UINT c, int d, int e, UINT f) { return pLoadImageW(a,b,c,d,e,f); }
 inline void CloseHandle(HANDLE) {}
 inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
-inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD, HKEY*) { return ERROR_SUCCESS; }
+extern LONG g_RegOpenKeyExResult;
+extern bool g_RegOpenKeyExFailOnSetValue;
+inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD samDesired, HKEY*) {
+    if (g_RegOpenKeyExFailOnSetValue && (samDesired & KEY_SET_VALUE)) {
+        return g_RegOpenKeyExResult;
+    }
+    return ERROR_SUCCESS;
+}
 extern LONG g_RegSetValueExResult;
 inline LONG RegSetValueEx(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return g_RegSetValueExResult; }
 inline LONG RegSetValueExW(HKEY, LPCWSTR, DWORD, DWORD, const BYTE*, DWORD) { return g_RegSetValueExResult; }

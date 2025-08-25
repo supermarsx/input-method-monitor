@@ -109,35 +109,41 @@ static void ToggleHotKey(HWND hwnd, const wchar_t* valueName,
     WinRegHandle hKey;
     LONG result = RegOpenKeyEx(HKEY_CURRENT_USER, L"Keyboard Layout\\Toggle", 0,
                                KEY_SET_VALUE, hKey.receive());
-    if (result == ERROR_SUCCESS) {
-        bool previous = enabledFlag.load();
-        bool desired;
-        const wchar_t* value;
-        if (overrideState) {
-            desired = state;
-            value = state ? onValue : offValue;
-        } else {
-            desired = !previous;
-            value = desired ? onValue : offValue;
-        }
-
-        result = RegSetValueEx(hKey.get(), valueName, 0, REG_SZ,
-                               reinterpret_cast<const BYTE*>(value),
-                               (lstrlen(value) + 1) * sizeof(wchar_t));
-        if (result != ERROR_SUCCESS) {
-            std::wstringstream ss;
-            ss << L"Failed to set registry value for " << valueName
-               << L". Error: " << result;
-            WriteLog(LogLevel::Error, ss.str().c_str());
-            enabledFlag.store(previous);
-            return;
-        }
-
-        enabledFlag.store(desired);
-
-        if (updateFunc)
-            updateFunc(enabledFlag.load());
+    if (result != ERROR_SUCCESS) {
+        std::wstringstream ss;
+        ss << L"Failed to open registry key for " << valueName
+           << L". Error: " << result;
+        WriteLog(LogLevel::Error, ss.str().c_str());
+        return;
     }
+
+    bool previous = enabledFlag.load();
+    bool desired;
+    const wchar_t* value;
+    if (overrideState) {
+        desired = state;
+        value = state ? onValue : offValue;
+    } else {
+        desired = !previous;
+        value = desired ? onValue : offValue;
+    }
+
+    result = RegSetValueEx(hKey.get(), valueName, 0, REG_SZ,
+                           reinterpret_cast<const BYTE*>(value),
+                           (lstrlen(value) + 1) * sizeof(wchar_t));
+    if (result != ERROR_SUCCESS) {
+        std::wstringstream ss;
+        ss << L"Failed to set registry value for " << valueName
+           << L". Error: " << result;
+        WriteLog(LogLevel::Error, ss.str().c_str());
+        enabledFlag.store(previous);
+        return;
+    }
+
+    enabledFlag.store(desired);
+
+    if (updateFunc)
+        updateFunc(enabledFlag.load());
 }
 
 void ToggleLanguageHotKey(HWND hwnd, bool overrideState, bool desiredState) {
