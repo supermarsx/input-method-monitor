@@ -1,0 +1,31 @@
+name: Run tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake g++ git
+
+    - name: Configure and build
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release -- -j$(nproc)
+
+    - name: Run tests
+      run: |
+        if [ -f build/run_tests ]; then
+          build/run_tests
+        else
+          echo "Test binary not found; ensure Catch2 is available or FetchContent can fetch it."
+          exit 1
+        fi

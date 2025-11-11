@@ -10,12 +10,8 @@
 #include <thread>
 #include <iterator>
 
-LONG g_RegOpenKeyExResult = ERROR_SUCCESS;
-bool g_RegOpenKeyExFailOnSetValue = false;
-LONG g_RegSetValueExResult = ERROR_SUCCESS;
 SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = nullptr;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = nullptr;
-DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD) = [](HINSTANCE, wchar_t*, DWORD) -> DWORD { return 0; };
 
 TEST_CASE("Startup registry flag toggles") {
     auto& state = GetAppState();

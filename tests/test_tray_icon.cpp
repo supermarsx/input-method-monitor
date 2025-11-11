@@ -7,15 +7,16 @@
 #include <atomic>
 #include <string>
 
-// Provide definitions for globals expected by tray_icon
-HINSTANCE g_hInst = nullptr;
-// Stub for LoadImageW used by tray icon
+// Provide definitions for globals expected by tray_icon (delegated to tests/stubs.cpp)
+extern HINSTANCE g_hInst;
+// Stub for LoadImageW used by tray icon (per-test instance)
 static std::wstring g_loadedPath;
-HANDLE DummyLoadImage(HINSTANCE, LPCWSTR path, UINT, int, int, UINT) {
+static HANDLE DummyLoadImage(HINSTANCE, LPCWSTR path, UINT, int, int, UINT) {
     g_loadedPath = path ? path : L"";
     return reinterpret_cast<HANDLE>(1);
 }
-HANDLE (*pLoadImageW)(HINSTANCE, LPCWSTR, UINT, int, int, UINT) = DummyLoadImage;
+// Use the shared pointer stub, tests may override it
+extern HANDLE (*pLoadImageW)(HINSTANCE, LPCWSTR, UINT, int, int, UINT);
 
 // Track icon IDs added and removed
 static std::set<UINT> g_icons;

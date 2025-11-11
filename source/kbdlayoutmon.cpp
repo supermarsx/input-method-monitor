@@ -46,7 +46,7 @@ SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = NULL;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = NULL;
 GetLanguageHotKeyEnabledFunc GetLanguageHotKeyEnabled = NULL;
 GetLayoutHotKeyEnabledFunc GetLayoutHotKeyEnabled = NULL;
-SetDebugLoggingEnabledFunc SetDebugLoggingEnabled = NULL;
+SetDebugLoggingEnabledFunc SetDebugLoggingEnabledPtr = NULL;
 InitHookModuleFunc InitHookModule = NULL;
 CleanupHookModuleFunc CleanupHookModule = NULL;
 
@@ -104,10 +104,10 @@ void ApplyConfig(HWND hwnd) {
     auto debugVal = g_config.get(L"debug");
     auto& state = GetAppState();
     bool newDebug = (debugVal && *debugVal == L"1");
-    if (newDebug != state.debugEnabled.load()) {
+if (newDebug != state.debugEnabled.load()) {
         state.debugEnabled.store(newDebug);
-        if (SetDebugLoggingEnabled)
-            SetDebugLoggingEnabled(state.debugEnabled.load());
+        if (SetDebugLoggingEnabledPtr)
+            SetDebugLoggingEnabledPtr(state.debugEnabled.load());
     }
 
     bool tray = true;
@@ -470,12 +470,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     SetLayoutHotKeyEnabled = (SetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "SetLayoutHotKeyEnabled");
     GetLanguageHotKeyEnabled = (GetLanguageHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLanguageHotKeyEnabled");
     GetLayoutHotKeyEnabled = (GetLayoutHotKeyEnabledFunc)GetProcAddress(g_hDll, "GetLayoutHotKeyEnabled");
-    SetDebugLoggingEnabled = (SetDebugLoggingEnabledFunc)GetProcAddress(g_hDll, "SetDebugLoggingEnabled");
+    SetDebugLoggingEnabledPtr = (SetDebugLoggingEnabledFunc)GetProcAddress(g_hDll, "SetDebugLoggingEnabled");
     InitHookModule = (InitHookModuleFunc)GetProcAddress(g_hDll, "InitHookModule");
     CleanupHookModule = (CleanupHookModuleFunc)GetProcAddress(g_hDll, "CleanupHookModule");
 
-        if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled ||
-            !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabled ||
+    if (!InstallGlobalHook || !UninstallGlobalHook || !SetLanguageHotKeyEnabled || !SetLayoutHotKeyEnabled ||
+            !GetLanguageHotKeyEnabled || !GetLayoutHotKeyEnabled || !SetDebugLoggingEnabledPtr ||
             !InitHookModule || !CleanupHookModule) {
             DWORD errorCode = GetLastError();
             std::wstringstream ss;
@@ -502,7 +502,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         }
 
     // Propagate current debug logging state to the DLL
-    SetDebugLoggingEnabled(GetAppState().debugEnabled.load());
+    if (SetDebugLoggingEnabledPtr)
+        SetDebugLoggingEnabledPtr(GetAppState().debugEnabled.load());
 
         if (!InstallGlobalHook()) {
             WriteLog(LogLevel::Error, L"Failed to install global hook.");

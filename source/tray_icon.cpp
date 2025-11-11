@@ -5,6 +5,9 @@
 #include "constants.h"
 #include "log.h"
 #include "utils.h"
+#ifdef _WIN32
+#  include <shlwapi.h>
+#endif
 #include "app_state.h"
 
 #ifndef ARRAYSIZE
@@ -128,7 +131,7 @@ void ShowTrayMenu(HWND hwnd) {
 }
 
 // Function pointers declared in main module
-extern void (*SetDebugLoggingEnabled)(bool);
+extern void (*SetDebugLoggingEnabledPtr)(bool);
 extern HMODULE g_hDll; // used for restart? not required, ignore
 
 void HandleTrayCommand(HWND hwnd, WPARAM wParam) {

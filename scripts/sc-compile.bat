@@ -50,7 +50,7 @@ REM echo [46mCompiling resource file[0m
 REM echo.
 
 REM Icon resource
-rc /nologo /v %SOURCE_RES_ICO% /fo %OUTPUT_RES_ICO% 2>&1 >nul
+rc /nologo /v /fo %OUTPUT_RES_ICO% %SOURCE_RES_ICO% 2>&1 >nul
 if errorlevel 1 (
 	echo.
     echo [91m[FAILED][0m Compile resource, %SOURCE_RES_ICO%.
@@ -59,7 +59,7 @@ if errorlevel 1 (
 )
 
 REM Version resource
-rc /nologo /v %SOURCE_RES_VER% /fo %OUTPUT_RES_VER% 2>&1 >nul
+rc /nologo /v /fo %OUTPUT_RES_VER% %SOURCE_RES_VER% 2>&1 >nul
 if errorlevel 1 (
     echo [91m[FAILED][0m Compile resource, %SOURCE_RES_VER%.
 ) else (

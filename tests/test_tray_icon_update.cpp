@@ -10,6 +10,8 @@
 // Globals provided elsewhere
 extern HINSTANCE g_hInst;
 extern std::unique_ptr<TrayIcon> g_trayIcon;
+extern HANDLE (*pLoadImageW)(HINSTANCE, LPCWSTR, UINT, int, int, UINT);
+extern BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA);
 
 // Stub LoadImageW to capture icon path
 static std::wstring g_loadedPath;

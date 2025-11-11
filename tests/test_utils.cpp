@@ -8,8 +8,8 @@ TEST_CASE("QuotePath wraps the path in quotes") {
 }
 
 TEST_CASE("QuotePath escapes internal quotes") {
-    std::wstring path = LR"(C:/Program Files/kbd"layout"mon.exe)";
-    REQUIRE(QuotePath(path) == LR"("C:/Program Files/kbd\"layout\"mon.exe")");
+    std::wstring path = L"C:/Program Files/kbd\"layout\"mon.exe";
+    REQUIRE(QuotePath(path) == L"\"C:/Program Files/kbd\\\"layout\\\"mon.exe\"");
 }
 
 TEST_CASE("QuotePath preserves trailing spaces") {
