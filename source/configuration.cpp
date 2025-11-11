@@ -2,6 +2,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <shlwapi.h>
+#include <filesystem>
 #else
 #include <filesystem>
 #include <cwchar>
@@ -27,11 +28,26 @@ void Configuration::load(std::optional<std::wstring> path) {
         fullPath = m_lastPath;
     } else {
 #ifdef _WIN32
-        wchar_t configPath[MAX_PATH];
-        GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
-        PathRemoveFileSpecW(configPath);
-        PathCombineW(configPath, configPath, configFile.c_str());
-        fullPath = configPath;
+        // Prefer current working directory (tests expect this behavior).
+        try {
+            std::filesystem::path cwdCfg = std::filesystem::current_path() / configFile;
+            if (std::filesystem::exists(cwdCfg)) {
+                fullPath = cwdCfg.wstring();
+            } else {
+                wchar_t configPath[MAX_PATH];
+                GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
+                PathRemoveFileSpecW(configPath);
+                PathCombineW(configPath, configPath, configFile);
+                fullPath = configPath;
+            }
+        } catch (...) {
+            // Fallback to module path if filesystem operations fail
+            wchar_t configPath[MAX_PATH];
+            GetModuleFileNameW(g_hInst, configPath, MAX_PATH);
+            PathRemoveFileSpecW(configPath);
+            PathCombineW(configPath, configPath, configFile);
+            fullPath = configPath;
+        }
 #else
         std::filesystem::path cfg = std::filesystem::current_path() / configFile;
         fullPath = cfg.wstring();

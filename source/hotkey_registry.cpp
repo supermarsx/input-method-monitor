@@ -7,6 +7,11 @@
 #include <sstream>
 #include <memory>
 
+#ifdef UNIT_TEST
+#include "../tests/windows_stub.h"
+#endif
+
+
 constexpr UINT TEMP_HOTKEY_TIMER_ID = 1;
 
 // Helper function to check if app is set to launch at startup

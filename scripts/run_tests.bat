@@ -18,7 +18,7 @@ if %ERRORLEVEL%==0 (
     goto try_gpp
   )
   echo Attempting to build CMake project and test targets
-  cmake --build build --config Debug -- -j
+  cmake --build build --config Debug
   if %ERRORLEVEL%==0 (
     echo Build finished. Checking for test binary...
     if exist build\run_tests.exe (

@@ -8,7 +8,7 @@
 #include "../source/app_state.h"
 
 #define _WIN32
-#include "windows.h"
+#include "windows_stub.h"
 
 #define private public
 #include "../source/config_watcher.h"

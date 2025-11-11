@@ -105,13 +105,10 @@ void WriteLog(LogLevel level, const wchar_t* message);
 extern "C" void WriteLog(const wchar_t* message);
 #endif
 
-inline void WriteLog(LogLevel level, const std::wstring& message) {
-    WriteLog(level, message.c_str());
-}
+// Non-inline overloads accepting std::wstring. Implemented in log.cpp.
+void WriteLog(LogLevel level, const std::wstring& message);
+void WriteLog(const std::wstring& message);
 
-inline void WriteLog(const std::wstring& message) {
-    WriteLog(message.c_str());
-}
 
 /**
  * @brief Enable or disable debug logging in the DLL.

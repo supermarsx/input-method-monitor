@@ -1,8 +1,7 @@
-#pragma once
-
 #ifdef _WIN32
 #include <windows.h>
 #else
+#pragma once
 #include <cstdint>
 #include <cwchar>
 #include <cstring>
@@ -207,7 +206,17 @@ inline DWORD WaitForMultipleObjects(DWORD a, const HANDLE* b, BOOL c, DWORD d) {
 inline DWORD GetModuleFileNameW(HINSTANCE inst, wchar_t* buffer, DWORD size) { return pGetModuleFileNameW(inst, buffer, size); }
 inline HANDLE LoadImageW(HINSTANCE a, LPCWSTR b, UINT c, int d, int e, UINT f) { return pLoadImageW(a,b,c,d,e,f); }
 inline void CloseHandle(HANDLE) {}
-inline BOOL WriteFile(HANDLE, const void*, DWORD, DWORD*, void*) { return TRUE; }
+extern BOOL (*pReadFile)(HANDLE, void*, DWORD, DWORD*, void*);
+extern BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*);
+extern HANDLE (*pCreateNamedPipeW)(LPCWSTR, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, void*);
+extern BOOL (*pConnectNamedPipe)(HANDLE, void*);
+extern BOOL (*pDisconnectNamedPipe)(HANDLE);
+
+inline BOOL ReadFile(HANDLE h, void* buf, DWORD len, DWORD* read, void* ov) { return pReadFile(h, buf, len, read, ov); }
+inline BOOL WriteFile(HANDLE h, const void* buf, DWORD len, DWORD* written, void* ov) { return pWriteFile(h, buf, len, written, ov); }
+inline HANDLE CreateNamedPipeW(LPCWSTR a, DWORD b, DWORD c, DWORD d, DWORD e, DWORD f, DWORD g, void* h) { return pCreateNamedPipeW(a,b,c,d,e,f,g,h); }
+inline BOOL ConnectNamedPipe(HANDLE a, void* b) { return pConnectNamedPipe(a,b); }
+inline BOOL DisconnectNamedPipe(HANDLE a) { return pDisconnectNamedPipe(a); }
 extern LONG g_RegOpenKeyExResult;
 extern bool g_RegOpenKeyExFailOnSetValue;
 inline LONG RegOpenKeyEx(HKEY, LPCWSTR, DWORD, DWORD samDesired, HKEY*) {
@@ -253,3 +262,25 @@ inline int lstrlen(const wchar_t* s) { return wcslen(s); }
 extern int g_sleepCalls;
 inline void Sleep(DWORD) { ++g_sleepCalls; }
 #endif
+
+// Test-controlled globals and function-pointer stubs (visible on all platforms)
+extern "C" {
+    extern HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR);
+    extern BOOL (*pSetEvent)(HANDLE);
+    extern HANDLE (*pCreateFileW)(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE);
+    extern BOOL (*pReadDirectoryChangesW)(HANDLE, void*, DWORD, BOOL, DWORD, DWORD*, OVERLAPPED*, void*);
+    extern BOOL (*pCancelIoEx)(HANDLE, OVERLAPPED*);
+    extern BOOL (*pGetOverlappedResult)(HANDLE, OVERLAPPED*, DWORD*, BOOL);
+    extern DWORD (*pWaitForMultipleObjects)(DWORD, const HANDLE*, BOOL, DWORD);
+    extern DWORD (*pWaitForSingleObject)(HANDLE, DWORD);
+    extern DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD);
+    extern HANDLE (*pLoadImageW)(HINSTANCE, LPCWSTR, UINT, int, int, UINT);
+    extern UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC);
+    extern BOOL (*pKillTimer)(HWND, UINT);
+    extern BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA);
+}
+
+extern LONG g_RegOpenKeyExResult;
+extern bool g_RegOpenKeyExFailOnSetValue;
+extern LONG g_RegSetValueExResult;
+extern int g_sleepCalls;

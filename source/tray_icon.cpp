@@ -177,9 +177,9 @@ void HandleTrayCommand(HWND hwnd, WPARAM wParam) {
             if (g_hInst) {
                 GetModuleFileName(g_hInst, cfgPath, MAX_PATH);
                 PathRemoveFileSpec(cfgPath);
-                PathCombine(cfgPath, cfgPath, configFile.c_str());
+                PathCombine(cfgPath, cfgPath, configFile);
             } else {
-                lstrcpynW(cfgPath, configFile.c_str(), MAX_PATH);
+                lstrcpynW(cfgPath, configFile, MAX_PATH);
             }
             ShellExecute(NULL, L"open", cfgPath, NULL, NULL, SW_SHOWNORMAL);
             break;

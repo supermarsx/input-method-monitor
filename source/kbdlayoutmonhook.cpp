@@ -67,7 +67,7 @@ static const wchar_t* LevelPrefix(LogLevel level) {
     }
 }
 
-void WriteLog(LogLevel level, const std::wstring& message) {
+static void WriteLog(LogLevel level, const std::wstring& message) {
     std::wstring formatted = std::wstring(L"[") + LevelPrefix(level) + L"] " + message;
     PipeWrite(formatted);
 }

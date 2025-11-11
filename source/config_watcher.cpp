@@ -10,10 +10,16 @@
 #include "configuration.h"
 #include "log.h"
 
+#ifdef UNIT_TEST
+// Use the test-controlled Win32 stubs when running unit tests
+#include "../tests/windows_stub.h"
+#endif
+
 // g_hInst is defined in kbdlayoutmon.cpp
 extern HINSTANCE g_hInst;
 // ApplyConfig is implemented in kbdlayoutmon.cpp
 void ApplyConfig(HWND hwnd);
+
 
 ConfigWatcher::ConfigWatcher(HWND hwnd) : m_hwnd(hwnd) {
     m_stopEvent.reset(CreateEventW(NULL, TRUE, FALSE, NULL));
@@ -62,7 +68,11 @@ void ConfigWatcher::threadProc(ConfigWatcher* self) {
                 break;
             std::wstring delayMsg = L"Retrying directory watch in " + std::to_wstring(backoff) + L" ms.";
             WriteLog(LogLevel::Warn, delayMsg);
+#ifdef UNIT_TEST
+            Sleep(backoff);
+#else
             std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+#endif
             if (backoff < kMaxBackoff) {
                 backoff *= 2;
                 if (backoff > kMaxBackoff)

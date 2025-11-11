@@ -5,10 +5,11 @@
 #include "../source/app_state.h"
 #include "../source/log.h"
 #include <filesystem>
-#include <fstream>
 #include <chrono>
 #include <thread>
-#include <iterator>
+#include <vector>
+#include "windows_stub.h"
+#include "test_file_io.h"
 
 SetLanguageHotKeyEnabledFunc SetLanguageHotKeyEnabled = nullptr;
 SetLayoutHotKeyEnabledFunc SetLayoutHotKeyEnabled = nullptr;
@@ -39,8 +40,7 @@ TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegSetValueEx 
 
     std::this_thread::sleep_for(200ms);
 
-    std::wifstream file(logPath);
-    std::wstring content((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
+    auto content = read_file_wstring_win(logPath);
     REQUIRE(content.find(L"Error: 5") != std::wstring::npos);
     REQUIRE_FALSE(state.languageHotKeyEnabled.load());
 
@@ -67,8 +67,7 @@ TEST_CASE("ToggleLanguageHotKey logs error and preserves state on RegOpenKeyEx f
 
     std::this_thread::sleep_for(200ms);
 
-    std::wifstream file(logPath);
-    std::wstring content((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
+    auto content = read_file_wstring_win(logPath);
     REQUIRE(content.find(L"Error: 5") != std::wstring::npos);
     REQUIRE_FALSE(state.languageHotKeyEnabled.load());
 
@@ -97,8 +96,7 @@ TEST_CASE("TemporarilyEnableHotKeys logs error and preserves state on RegSetValu
 
     std::this_thread::sleep_for(200ms);
 
-    std::wifstream file(logPath);
-    std::wstring content((std::istreambuf_iterator<wchar_t>(file)), std::istreambuf_iterator<wchar_t>());
+    auto content = read_file_wstring_win(logPath);
     REQUIRE(content.find(L"Error: 5") != std::wstring::npos);
     REQUIRE_FALSE(state.tempHotKeysEnabled.load());
     REQUIRE_FALSE(state.languageHotKeyEnabled.load());

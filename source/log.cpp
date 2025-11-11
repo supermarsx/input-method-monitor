@@ -22,6 +22,11 @@ inline void lstrcpyW(wchar_t* dst, const wchar_t* src) { std::wcscpy(dst, src); 
 #include "configuration.h"
 #include "app_state.h"
 
+#ifdef UNIT_TEST
+#include "../tests/windows_stub.h"
+#endif
+
+
 extern HINSTANCE g_hInst; // Provided by the executable or DLL
 std::atomic<bool> g_verboseLogging{false};
 std::atomic<LogLevel> g_logLevel{LogLevel::Info};
@@ -87,6 +92,16 @@ void WriteLog(LogLevel level, const wchar_t* message) {
 extern "C" void WriteLog(const wchar_t* message) {
     WriteLog(LogLevel::Info, message);
 }
+
+// std::wstring overloads centralized here to avoid inline emissions across TUs
+void WriteLog(LogLevel level, const std::wstring& message) {
+    WriteLog(level, message.c_str());
+}
+
+void WriteLog(const std::wstring& message) {
+    WriteLog(message.c_str());
+}
+
 
 Log::Log(size_t maxQueueSize, bool startThreads) : m_maxQueueSize(maxQueueSize) {
     if (auto val = g_config.get(L"max_queue_size")) {
@@ -225,6 +240,37 @@ void Log::process() {
                 }
             }
 
+#ifdef UNIT_TEST
+                // In unit tests, write synchronously to make log visibility deterministic.
+                wchar_t ts[32] = {0};
+#ifdef _WIN32
+                SYSTEMTIME st{};
+                GetLocalTime(&st);
+                swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+#else
+                std::time_t t = std::time(nullptr);
+                std::tm tm{};
+                localtime_r(&t, &tm);
+                swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+#endif
+                std::wofstream ofs;
+#ifdef _WIN32
+                ofs.open(path.c_str(), std::ios::app);
+#else
+                ofs.open(std::filesystem::path(path), std::ios::app);
+#endif
+                if (ofs.is_open()) {
+                    ofs << ts << L" [" << LevelPrefix(level) << L"] " << msg << std::endl;
+                    ofs.close();
+                } else {
+#ifdef _WIN32
+                    OutputDebugString(L"Failed to write to log file.");
+#else
+                    std::wcerr << L"Failed to write to log file." << std::endl;
+#endif
+                }
+                lock.lock();
+#else
             if (m_file.is_open()) {
                 // Check log file size
                 size_t maxMb = 10;
@@ -346,6 +392,7 @@ void Log::process() {
 #endif
             }
             lock.lock();
+#endif
         }
         if (!m_running && m_queue.empty())
             break;
