@@ -1,11 +1,26 @@
 #include <catch2/catch_test_macros.hpp>
+#include "windows_stub.h"
+extern "C" BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*);
 #include "../source/log.h"
 #include "../source/configuration.h"
 #include "../source/app_state.h"
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <chrono>
 #include <thread>
+
+static void remove_dir_with_retry(const std::filesystem::path& dir) {
+    using namespace std::chrono_literals;
+    for (int i = 0; i < 10; ++i) {
+        try {
+            std::filesystem::remove_all(dir);
+            break;
+        } catch (const std::filesystem::filesystem_error&) {
+            std::this_thread::sleep_for(50ms);
+        }
+    }
+}
 
 #ifndef _WIN32
 using HINSTANCE = void*;
@@ -47,7 +62,8 @@ TEST_CASE("Log switches files when path changes", "[log]") {
     std::wstring line2; std::getline(f2, line2);
     REQUIRE(line2.find(L"two") != std::wstring::npos);
 
-    fs::remove_all(dir);
+    remove_dir_with_retry(dir);
+
 }
 
 TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
@@ -77,7 +93,8 @@ TEST_CASE("Log rotates file when size limit is exceeded", "[log]") {
     REQUIRE(fs::exists(logPath));
     REQUIRE(fs::exists(logPath.wstring() + L".1"));
 
-    fs::remove_all(dir);
+    remove_dir_with_retry(dir);
+
 }
 
 TEST_CASE("Log keeps only configured number of backups", "[log]") {
@@ -109,7 +126,8 @@ TEST_CASE("Log keeps only configured number of backups", "[log]") {
     REQUIRE(fs::exists(logPath.wstring() + L".2"));
     REQUIRE(!fs::exists(logPath.wstring() + L".3"));
 
-    fs::remove_all(dir);
+    remove_dir_with_retry(dir);
+
 }
 
 TEST_CASE("Log reports error when rotation rename fails", "[log]") {
@@ -119,7 +137,8 @@ TEST_CASE("Log reports error when rotation rename fails", "[log]") {
     using namespace std::chrono_literals;
     namespace fs = std::filesystem;
     fs::path dir = fs::temp_directory_path() / "immon_log_rename_fail";
-    fs::remove_all(dir);
+    remove_dir_with_retry(dir);
+
     fs::create_directories(dir);
 
     fs::path logPath = dir / "rotate.log";
@@ -145,7 +164,8 @@ TEST_CASE("Log reports error when rotation rename fails", "[log]") {
     REQUIRE(content.find(L"Failed to rotate log file") != std::wstring::npos);
     REQUIRE(content.find(L"after") != std::wstring::npos);
 
-    fs::remove_all(dir);
+    remove_dir_with_retry(dir);
+
 #endif
 }
 
@@ -191,6 +211,7 @@ TEST_CASE("Pipe listener handles messages larger than buffer", "[log][pipe]") {
     g_config.set(L"log_path", logPath.wstring());
 
     Log log; // starts pipe listener
+    std::wcout << L"Test: log path is: " << logPath.c_str() << std::endl;
     std::this_thread::sleep_for(50ms);
 
     // Create a message larger than the default pipe buffer (1024 wchar_t)
@@ -200,23 +221,38 @@ TEST_CASE("Pipe listener handles messages larger than buffer", "[log][pipe]") {
     HANDLE hPipe = INVALID_HANDLE_VALUE;
     // Try to connect to the pipe until the listener is ready
     for (int i = 0; i < 50 && hPipe == INVALID_HANDLE_VALUE; ++i) {
-        hPipe = CreateFileW(pipeName, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+        hPipe = pCreateFileW(pipeName, GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
         if (hPipe == INVALID_HANDLE_VALUE)
             std::this_thread::sleep_for(50ms);
     }
     REQUIRE(hPipe != INVALID_HANDLE_VALUE);
 
     DWORD written = 0;
-    WriteFile(hPipe, big.c_str(), static_cast<DWORD>(big.size() * sizeof(wchar_t)), &written, NULL);
+    pWriteFile(hPipe, big.c_str(), static_cast<DWORD>(big.size() * sizeof(wchar_t)), &written, NULL);
     CloseHandle(hPipe);
 
     std::this_thread::sleep_for(200ms);
     log.shutdown();
 
-    std::wifstream f(logPath);
-    std::wstring content((std::istreambuf_iterator<wchar_t>(f)), std::istreambuf_iterator<wchar_t>());
+    // Read file as binary and decode UTF-16 LE reliably
+    std::ifstream bf(logPath, std::ios::binary);
+    std::string bytes((std::istreambuf_iterator<char>(bf)), std::istreambuf_iterator<char>());
+    std::wstring content;
+    if (!bytes.empty()) {
+        size_t offset = 0;
+        if (bytes.size() >= 2 && static_cast<unsigned char>(bytes[0]) == 0xFFu && static_cast<unsigned char>(bytes[1]) == 0xFEu) {
+            // Skip UTF-16LE BOM
+            offset = 2;
+        }
+        size_t wcharCount = (bytes.size() >= offset) ? (bytes.size() - offset) / sizeof(wchar_t) : 0;
+        content.resize(wcharCount);
+        if (wcharCount > 0) {
+            memcpy(&content[0], bytes.data() + offset, wcharCount * sizeof(wchar_t));
+        }
+    }
     REQUIRE(content.find(big) != std::wstring::npos);
 
-    fs::remove_all(dir);
+    remove_dir_with_retry(dir);
+
 }
 #endif

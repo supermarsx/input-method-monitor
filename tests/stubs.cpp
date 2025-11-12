@@ -1,9 +1,13 @@
 #include <string>
 #include <atomic>
 #include <cwchar>
+#include <iostream>
 #include "windows_stub.h"
 #include "../source/app_state.h"
 #include "../source/hotkey_registry.h"
+#include "../source/log.h"
+
+
 
 
 // CLI helpers used by some tests
@@ -36,8 +40,32 @@ HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR) = [](void*, BOOL, BOOL, LPCW
 BOOL (*pSetEvent)(HANDLE) = [](HANDLE){ return TRUE; };
 HANDLE (*pCreateFileW)(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) = [](LPCWSTR path, DWORD access, DWORD share, void* sec, DWORD disp, DWORD flags, HANDLE templ) -> HANDLE {
     // If attempting to open a named pipe, simulate a client handle
-    if (path && wcsncmp(path, L"\\\\.\\pipe\\", 9) == 0) {
-        return reinterpret_cast<HANDLE>(3); // simulated pipe client handle
+    if (path) {
+        std::wcout << L"pCreateFileW called with path: " << path << std::endl;
+        // Print first few codepoints for debugging
+        std::wcout << L"path codes: ";
+        for (int i = 0; i < 12 && path[i] != L'\0'; ++i) {
+            std::wcout << std::hex << (int)path[i] << L" ";
+        }
+        std::wcout << std::dec << std::endl;
+        // Robust prefix checks for named pipe forms used by tests
+        const wchar_t* prefix1 = L"\\\\.\\pipe\\"; // "\\.\pipe\"
+        const wchar_t* prefix2 = L"\\\\?\\pipe\\"; // "\\?\pipe\"
+        const wchar_t* prefixSingle = L"\\.\\pipe\\"; // "\.\pipe\"
+        size_t p1len = wcslen(prefix1);
+        size_t p2len = wcslen(prefix2);
+        size_t pslen = wcslen(prefixSingle);
+        if ((wcslen(path) >= p1len && wcsncmp(path, prefix1, p1len) == 0) ||
+            (wcslen(path) >= p2len && wcsncmp(path, prefix2, p2len) == 0) ||
+            (wcslen(path) >= pslen && wcsncmp(path, prefixSingle, pslen) == 0)) {
+            std::wcout << L"pCreateFileW: matched pipe prefix, returning simulated handle" << std::endl;
+            return reinterpret_cast<HANDLE>(3); // simulated pipe client handle
+        }
+        // Fallback: if the path contains "\\pipe\\" anywhere, treat it as a pipe
+        if (wcsstr(path, L"\\\\pipe\\") != nullptr) {
+            std::wcout << L"pCreateFileW: matched pipe substring, returning simulated handle" << std::endl;
+            return reinterpret_cast<HANDLE>(3);
+        }
     }
     // Otherwise forward to the real kernel32 CreateFileW via GetProcAddress to avoid recursion
     HMODULE h = GetModuleHandleW(L"kernel32.dll");
@@ -49,8 +77,15 @@ HANDLE (*pCreateFileW)(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) = [](
 };
 
 // Named pipe stubs (simulate in-process pipe handles)
-HANDLE (*pCreateNamedPipeW)(LPCWSTR, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, void*) = [](LPCWSTR, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, void*) -> HANDLE { return reinterpret_cast<HANDLE>(2); };
-BOOL (*pConnectNamedPipe)(HANDLE, void*) = [](HANDLE, void*) -> BOOL { return TRUE; };
+HANDLE (*pCreateNamedPipeW)(LPCWSTR, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, void*) = [](LPCWSTR name, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, void*) -> HANDLE {
+    if (name) std::wcout << L"pCreateNamedPipeW called with name: " << name << std::endl;
+    std::wcout << L"pCreateNamedPipeW: returning simulated server handle" << std::endl;
+    return reinterpret_cast<HANDLE>(2);
+};
+BOOL (*pConnectNamedPipe)(HANDLE h, void*) = [](HANDLE h, void*) -> BOOL {
+    std::wcout << L"pConnectNamedPipe called for handle=" << h << std::endl;
+    return TRUE;
+};
 BOOL (*pDisconnectNamedPipe)(HANDLE) = [](HANDLE) -> BOOL { return TRUE; };
 
 BOOL (*pReadFile)(HANDLE, void*, DWORD, DWORD*, void*) = [](HANDLE h, void* buf, DWORD len, DWORD* read, void*) -> BOOL {
@@ -72,6 +107,7 @@ BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*) = [](HANDLE h, con
         std::wstring msg(wbuf, wchars);
         // Trim possible trailing nulls
         while (!msg.empty() && msg.back() == L'\0') msg.pop_back();
+        std::wcout << L"pWriteFile: received message length=" << msg.size() << L" first10='" << msg.substr(0,10) << L"'" << std::endl;
         WriteLog(LogLevel::Info, msg.c_str());
         if (written) *written = len;
         return TRUE;

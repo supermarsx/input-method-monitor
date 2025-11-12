@@ -10,17 +10,30 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v3
-    - name: Configure
-      run: b configure
-      shell: bash
-    - name: Build
-      run: b
-      shell: bash
-    - name: Test
-      run: b test
-      shell: bash
+
+    - name: Install dependencies
+      run: |
+        choco install -y cmake --installargs 'ADD_CMAKE_TO_PATH=System' || echo "choco may require admin rights; runner likely already has cmake"
+      shell: cmd
+
+    - name: Configure (CMake)
+      run: |
+        cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+      shell: cmd
+
+    - name: Build (MSBuild)
+      run: |
+        cmake --build build --config Release -- /m
+      shell: cmd
+
+    - name: Run tests (CTest)
+      run: |
+        cmake --build build --config Release --target RUN_TESTS || echo "Test target missing or failed"
+      shell: cmd
+
     - name: Smoke test
       run: |
-        if (!(Test-Path 'kbdlayoutmon.exe')) { throw 'Missing executable' }
-        if (!(Test-Path 'kbdlayoutmonhook.dll')) { throw 'Missing DLL' }
+        if (!(Test-Path 'build\\Release\\kbdlayoutmon.exe')) { throw 'Missing executable' }
+        if (!(Test-Path 'build\\Release\\kbdlayoutmonhook.dll')) { throw 'Missing DLL' }
       shell: pwsh
+

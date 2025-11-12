@@ -205,7 +205,16 @@ inline BOOL GetOverlappedResult(HANDLE a, OVERLAPPED* b, DWORD* c, BOOL d) { ret
 inline DWORD WaitForMultipleObjects(DWORD a, const HANDLE* b, BOOL c, DWORD d) { return pWaitForMultipleObjects(a,b,c,d); }
 inline DWORD GetModuleFileNameW(HINSTANCE inst, wchar_t* buffer, DWORD size) { return pGetModuleFileNameW(inst, buffer, size); }
 inline HANDLE LoadImageW(HINSTANCE a, LPCWSTR b, UINT c, int d, int e, UINT f) { return pLoadImageW(a,b,c,d,e,f); }
-inline void CloseHandle(HANDLE) {}
+inline void CloseHandle(HANDLE h) { 
+    // Avoid closing our simulated in-process handles (2 and 3) which are not real
+    if (h == reinterpret_cast<HANDLE>(2) || h == reinterpret_cast<HANDLE>(3))
+        return;
+#ifdef _WIN32
+    ::CloseHandle(h);
+#else
+    (void)h;
+#endif
+}
 extern BOOL (*pReadFile)(HANDLE, void*, DWORD, DWORD*, void*);
 extern BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*);
 extern HANDLE (*pCreateNamedPipeW)(LPCWSTR, DWORD, DWORD, DWORD, DWORD, DWORD, DWORD, void*);

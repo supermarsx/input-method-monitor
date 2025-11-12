@@ -27,18 +27,18 @@ void ToggleLanguageHotKey(HWND hwnd, bool overrideState, bool desiredState) {
     extern LONG g_RegSetValueExResult;
 
     if (g_RegOpenKeyExResult != ERROR_SUCCESS && g_RegOpenKeyExFailOnSetValue) {
-        {
-        wchar_t buf[64]; swprintf(buf, _countof(buf), L"Failed to open registry key for Language HotKey. Error: %d", g_RegOpenKeyExResult);
-        WriteLog(LogLevel::Error, std::wstring(buf));
+{
+        std::wstring msg = L"Failed to open registry key for Language HotKey. Error: " + std::to_wstring((long)g_RegOpenKeyExResult);
+        WriteLog(LogLevel::Error, msg);
     }
         return;
     }
 
     // Simulate RegSetValueEx
     if (g_RegSetValueExResult != ERROR_SUCCESS) {
-        {
-        wchar_t buf[64]; swprintf(buf, _countof(buf), L"Failed to set registry value for Language HotKey. Error: %d", g_RegSetValueExResult);
-        WriteLog(LogLevel::Error, std::wstring(buf));
+{
+        std::wstring msg = L"Failed to set registry value for Language HotKey. Error: " + std::to_wstring((long)g_RegSetValueExResult);
+        WriteLog(LogLevel::Error, msg);
     }
         app.languageHotKeyEnabled.store(previous);
         return;
@@ -59,17 +59,17 @@ void ToggleLayoutHotKey(HWND hwnd, bool overrideState, bool desiredState) {
     extern LONG g_RegSetValueExResult;
 
     if (g_RegOpenKeyExResult != ERROR_SUCCESS && g_RegOpenKeyExFailOnSetValue) {
-        {
-        wchar_t buf[64]; swprintf(buf, _countof(buf), L"Failed to open registry key for Layout HotKey. Error: %d", g_RegOpenKeyExResult);
-        WriteLog(LogLevel::Error, std::wstring(buf));
+{
+        std::wstring msg = L"Failed to open registry key for Layout HotKey. Error: " + std::to_wstring((long)g_RegOpenKeyExResult);
+        WriteLog(LogLevel::Error, msg);
     }
         return;
     }
 
     if (g_RegSetValueExResult != ERROR_SUCCESS) {
-        {
-        wchar_t buf[64]; swprintf(buf, _countof(buf), L"Failed to set registry value for Layout HotKey. Error: %d", g_RegSetValueExResult);
-        WriteLog(LogLevel::Error, std::wstring(buf));
+{
+        std::wstring msg = L"Failed to set registry value for Layout HotKey. Error: " + std::to_wstring((long)g_RegSetValueExResult);
+        WriteLog(LogLevel::Error, msg);
     }
         app.layoutHotKeyEnabled.store(previous);
         return;
@@ -87,17 +87,17 @@ void TemporarilyEnableHotKeys(HWND hwnd) {
     extern LONG g_RegSetValueExResult;
 
     if (g_RegOpenKeyExResult != ERROR_SUCCESS) {
-        {
-        wchar_t buf[64]; swprintf(buf, _countof(buf), L"Failed to open registry key for temporarily enabling hotkeys. Error: %d", g_RegOpenKeyExResult);
-        WriteLog(LogLevel::Error, std::wstring(buf));
+{
+        std::wstring msg = L"Failed to open registry key for temporarily enabling hotkeys. Error: " + std::to_wstring((long)g_RegOpenKeyExResult);
+        WriteLog(LogLevel::Error, msg);
     }
         return;
     }
 
     if (g_RegSetValueExResult != ERROR_SUCCESS) {
-        {
-        wchar_t buf[64]; swprintf(buf, _countof(buf), L"Failed to set registry values for temporarily enabling hotkeys. Error: %d", g_RegSetValueExResult);
-        WriteLog(LogLevel::Error, std::wstring(buf));
+{
+        std::wstring msg = L"Failed to set registry values for temporarily enabling hotkeys. Error: " + std::to_wstring((long)g_RegSetValueExResult);
+        WriteLog(LogLevel::Error, msg);
     }
         return;
     }

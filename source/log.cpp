@@ -57,7 +57,13 @@ std::wstring GetLogPath() {
 }
 
 /// Global log instance used by the executable and DLL.
+#ifdef UNIT_TEST
+// During unit tests avoid starting global log worker threads to prevent
+// interfering with test-local Log instances and locking log files.
+Log g_log(1000, false);
+#else
 Log g_log;
+#endif
 
 extern "C" void SetDebugLoggingEnabled(bool enabled) {
     GetAppState().debugEnabled.store(enabled);
@@ -77,6 +83,120 @@ const wchar_t* LevelPrefix(LogLevel level) {
 }
 
 void WriteLog(LogLevel level, const wchar_t* message) {
+#ifdef UNIT_TEST
+    // In unit tests write synchronously to the configured log path so tests
+    // observe entries immediately without relying on background threads.
+    if (!GetAppState().debugEnabled.load()) return;
+    if (level < g_logLevel.load()) return;
+
+    auto append_with_bom_and_sharing = [](const std::wstring& path, const std::wstring& payload) {
+#ifdef _WIN32
+        // Open with share flags that allow other processes to delete the file while it is open.
+        HANDLE h = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                              NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (h == INVALID_HANDLE_VALUE)
+            return false;
+
+        // Instrumentation for unit tests: report handle opens/closes for debugging
+        OutputDebugStringW(L"UNIT_TEST: Opened log file handle\n");
+
+        // If file was just created (size 0) write UTF-16 LE BOM
+        LARGE_INTEGER li{};
+        if (GetFileSizeEx(h, &li) && li.QuadPart == 0) {
+            unsigned char bom[2] = { 0xFF, 0xFE };
+            DWORD wrote = 0;
+            WriteFile(h, bom, 2, &wrote, NULL);
+        }
+
+        // Move to end and write payload as UTF-16 LE
+        // Note: WriteFile on Windows writes bytes; wchar_t is UTF-16 on Windows
+        DWORD bytes = static_cast<DWORD>(payload.size() * sizeof(wchar_t));
+        DWORD written = 0;
+        // Ensure we append by setting file pointer to end
+        SetFilePointer(h, 0, NULL, FILE_END);
+        BOOL ok = WriteFile(h, payload.c_str(), bytes, &written, NULL);
+        CloseHandle(h);
+        OutputDebugStringW(L"UNIT_TEST: Closed log file handle\n");
+        return ok == TRUE;
+#else
+        // Fallback to wofstream for non-Windows (shouldn't be used in these tests)
+        try {
+            std::wofstream ofs(std::filesystem::path(path), std::ios::app);
+            if (!ofs.is_open()) return false;
+            ofs << payload;
+            ofs.close();
+            return true;
+        } catch (...) {
+            return false;
+        }
+#endif
+    };
+
+    std::wstring path = GetLogPath();
+    wchar_t ts[32] = {0};
+#ifdef _WIN32
+    SYSTEMTIME st{};
+    GetLocalTime(&st);
+    swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+#else
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+    localtime_r(&t, &tm);
+    swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+#endif
+    std::wstring line = std::wstring(ts) + L" [" + LevelPrefix(level) + L"] " + message + L"\r\n";
+
+    // In UNIT_TEST ensure rotation semantics are honored prior to writing
+#ifdef _WIN32
+    // Determine max size and backups from configuration
+    unsigned long long maxBytes = 10ULL * 1024ULL * 1024ULL;
+    if (auto val = g_config.get(L"max_log_size_mb")) {
+        try { maxBytes = static_cast<unsigned long long>(std::stoul(*val)) * 1024ULL * 1024ULL; } catch(...) { }
+    }
+    size_t maxBackups = 5;
+    if (auto b = g_config.get(L"max_log_backups")) {
+        try { maxBackups = std::stoul(*b); } catch(...) { }
+    }
+
+    WIN32_FILE_ATTRIBUTE_DATA fad;
+    bool exists = GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad) != 0;
+    if (exists) {
+        unsigned long long size = (static_cast<unsigned long long>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
+        if (size > maxBytes) {
+            // Rotate backups
+            for (size_t i = maxBackups; i > 0; --i) {
+                std::wstring src = path + L"." + std::to_wstring(i);
+                DWORD attrs = GetFileAttributesW(src.c_str());
+                if (attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY)) {
+                    if (i == maxBackups) {
+                        DeleteFileW(src.c_str());
+                    } else {
+                        std::wstring dest = path + L"." + std::to_wstring(i + 1);
+                        MoveFileExW(src.c_str(), dest.c_str(), MOVEFILE_REPLACE_EXISTING);
+                    }
+                }
+            }
+            std::wstring rotated = path + L".1";
+            if (!MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+                // Failed to rotate - write an error log entry directly to path
+                append_with_bom_and_sharing(path, std::wstring(ts) + L" [ERROR] Failed to rotate log file.\r\n");
+            }
+        }
+    }
+#endif
+
+    append_with_bom_and_sharing(path, line);
+
+    if (g_verboseLogging) {
+        std::wstring out = std::wstring(L"[") + LevelPrefix(level) + L"] " + message;
+#ifdef _WIN32
+        OutputDebugStringW(out.c_str());
+        OutputDebugStringW(L"\n");
+#else
+        std::wcerr << out << std::endl;
+#endif
+    }
+#else
     g_log.write(level, message);
     if (g_verboseLogging) {
         std::wstring out = std::wstring(L"[") + LevelPrefix(level) + L"] " + message;
@@ -87,6 +207,7 @@ void WriteLog(LogLevel level, const wchar_t* message) {
         std::wcerr << out << std::endl;
 #endif
     }
+#endif
 }
 
 extern "C" void WriteLog(const wchar_t* message) {
@@ -187,6 +308,7 @@ std::wstring Log::peekOldest() const {
 
 void Log::process() {
     std::wstring path = GetLogPath();
+#ifndef UNIT_TEST
 #ifdef _WIN32
     m_file.open(path.c_str(), std::ios::app);
 #else
@@ -199,6 +321,8 @@ void Log::process() {
         std::wcerr << L"Failed to open log file." << std::endl;
 #endif
     }
+#endif
+
 
     auto logError = [this](const wchar_t* msg) {
         ++m_suppress;
@@ -241,34 +365,8 @@ void Log::process() {
             }
 
 #ifdef UNIT_TEST
-                // In unit tests, write synchronously to make log visibility deterministic.
-                wchar_t ts[32] = {0};
-#ifdef _WIN32
-                SYSTEMTIME st{};
-                GetLocalTime(&st);
-                swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-#else
-                std::time_t t = std::time(nullptr);
-                std::tm tm{};
-                localtime_r(&t, &tm);
-                swprintf(ts, 32, L"%04d-%02d-%02d %02d:%02d:%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-#endif
-                std::wofstream ofs;
-#ifdef _WIN32
-                ofs.open(path.c_str(), std::ios::app);
-#else
-                ofs.open(std::filesystem::path(path), std::ios::app);
-#endif
-                if (ofs.is_open()) {
-                    ofs << ts << L" [" << LevelPrefix(level) << L"] " << msg << std::endl;
-                    ofs.close();
-                } else {
-#ifdef _WIN32
-                    OutputDebugString(L"Failed to write to log file.");
-#else
-                    std::wcerr << L"Failed to write to log file." << std::endl;
-#endif
-                }
+                // In unit tests, forward to WriteLog to reuse BOM, sharing and rotation logic.
+                WriteLog(level, msg.c_str());
                 lock.lock();
 #else
             if (m_file.is_open()) {
@@ -403,6 +501,10 @@ void Log::process() {
 
 #ifdef _WIN32
 void Log::pipeListener() {
+    std::wstring loc = GetLogPath();
+    OutputDebugStringW(L"pipeListener: starting\n");
+    OutputDebugStringW(loc.c_str());
+    OutputDebugStringW(L"\n");
     const wchar_t* pipeName = L"\\\\.\\pipe\\kbdlayoutmon_log";
     OVERLAPPED ov{};
     HandleGuard event(CreateEventW(NULL, TRUE, FALSE, NULL));
