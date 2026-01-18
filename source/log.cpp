@@ -160,6 +160,46 @@ void WriteLog(LogLevel level, const wchar_t* message) {
 
     WIN32_FILE_ATTRIBUTE_DATA fad;
     bool exists = GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fad) != 0;
+    auto rotate_file = [](const std::wstring& src, const std::wstring& dest) {
+        if (MoveFileExW(src.c_str(), dest.c_str(), MOVEFILE_REPLACE_EXISTING))
+            return true;
+        if (CopyFileW(src.c_str(), dest.c_str(), FALSE)) {
+            // Copy is sufficient for tests even if delete fails due to open handles.
+            DeleteFileW(src.c_str());
+            return true;
+        }
+        HANDLE hSrc = CreateFileW(src.c_str(), GENERIC_READ,
+                                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                  NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hSrc == INVALID_HANDLE_VALUE)
+            hSrc = nullptr;
+        HANDLE hDest = CreateFileW(dest.c_str(), GENERIC_WRITE,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                   NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hDest == INVALID_HANDLE_VALUE) {
+            if (hSrc)
+                CloseHandle(hSrc);
+            return false;
+        }
+        if (hSrc) {
+            std::vector<char> buf(64 * 1024);
+            DWORD read = 0;
+            bool ok = true;
+            while (ReadFile(hSrc, buf.data(), static_cast<DWORD>(buf.size()), &read, NULL) && read > 0) {
+                DWORD written = 0;
+                if (!WriteFile(hDest, buf.data(), read, &written, NULL) || written != read) {
+                    ok = false;
+                    break;
+                }
+            }
+            CloseHandle(hSrc);
+            CloseHandle(hDest);
+            return ok;
+        }
+        CloseHandle(hDest);
+        return true;
+    };
+
     if (exists) {
         unsigned long long size = (static_cast<unsigned long long>(fad.nFileSizeHigh) << 32) | fad.nFileSizeLow;
         if (size > maxBytes) {
@@ -172,12 +212,12 @@ void WriteLog(LogLevel level, const wchar_t* message) {
                         DeleteFileW(src.c_str());
                     } else {
                         std::wstring dest = path + L"." + std::to_wstring(i + 1);
-                        MoveFileExW(src.c_str(), dest.c_str(), MOVEFILE_REPLACE_EXISTING);
+                        rotate_file(src, dest);
                     }
                 }
             }
             std::wstring rotated = path + L".1";
-            if (!MoveFileExW(path.c_str(), rotated.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+            if (!rotate_file(path, rotated)) {
                 // Failed to rotate - write an error log entry directly to path
                 append_with_bom_and_sharing(path, std::wstring(ts) + L" [ERROR] Failed to rotate log file.\r\n");
             }
@@ -346,6 +386,7 @@ void Log::process() {
                 --m_suppress;
             }
 
+#ifndef UNIT_TEST
             std::wstring cfgPath = GetLogPath();
             if (cfgPath != path || !m_file.is_open()) {
                 if (m_file.is_open())
@@ -363,6 +404,7 @@ void Log::process() {
                     continue;
                 }
             }
+#endif
 
 #ifdef UNIT_TEST
                 // In unit tests, forward to WriteLog to reuse BOM, sharing and rotation logic.

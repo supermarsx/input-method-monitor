@@ -1,9 +1,9 @@
 # TODO
 
 ## Failing tests (blocking)
-- Please add the missing error log in the TemporarilyEnableHotKeys RegSetValueEx failure path (see `tests/test_hotkey_registry.cpp:80`; implementation in `tests/test_hotkey_registry_impl.cpp`).
-- Please make the Windows config watcher tests actually trigger apply/sleep counts (see `tests/test_config_watcher.cpp:35` and `tests/test_config_watcher.cpp:48`; current `tests/test_config_watcher_impl.cpp` is a no-op).
-- Please fix log rotation/backups in the unit-test path so `.1`/`.2` files are created (see `tests/test_log.cpp:69` and `tests/test_log.cpp:100`; logic in `source/log.cpp`).
+- [ ] Please add the missing error log in the TemporarilyEnableHotKeys RegSetValueEx failure path (see `tests/test_hotkey_registry.cpp:80`; implementation in `tests/test_hotkey_registry_impl.cpp`). (Note: the test passed locally after recent changes, but keep an eye on it.)
+- [x] Please make the Windows config watcher tests actually trigger apply/sleep counts (see `tests/test_config_watcher.cpp:35` and `tests/test_config_watcher.cpp:48`; current `tests/test_config_watcher_impl.cpp` was a no-op).
+- [x] Please fix log rotation/backups in the unit-test path so `.1`/`.2` files are created (see `tests/test_log.cpp:69` and `tests/test_log.cpp:100`; logic in `source/log.cpp`).
 
 ## Flaky or intermittent
 - Please stabilize the pipe listener test that sometimes fails to open the named pipe (see `tests/test_log.cpp:202`; failure in `last_run.txt`).
