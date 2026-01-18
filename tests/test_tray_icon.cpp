@@ -35,6 +35,7 @@ BOOL FakeShellNotifyIcon(DWORD msg, PNOTIFYICONDATA data) {
 TEST_CASE("TrayIcon removes icon on destruction during exception") {
     g_icons.clear();
     pShell_NotifyIcon = FakeShellNotifyIcon;
+    pLoadImageW = DummyLoadImage;
     try {
         TrayIcon icon(reinterpret_cast<HWND>(1));
         throw std::runtime_error("boom");
@@ -49,6 +50,7 @@ TEST_CASE("TrayIcon uses configured icon and tooltip") {
     g_lastTip.clear();
     g_loadedPath.clear();
     pShell_NotifyIcon = FakeShellNotifyIcon;
+    pLoadImageW = DummyLoadImage;
     g_config.set(L"icon_path", L"custom.ico");
     g_config.set(L"tray_tooltip", L"CustomTip");
     TrayIcon icon(reinterpret_cast<HWND>(1));
