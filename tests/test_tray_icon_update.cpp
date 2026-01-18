@@ -33,8 +33,8 @@ static BOOL FakeShellNotifyIcon2(DWORD msg, PNOTIFYICONDATA data) {
 }
 extern BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA);
 
-// Minimal ApplyConfig implementation used for testing
-void ApplyConfig(HWND hwnd) {
+// Minimal config update helper used for testing
+static void ApplyConfigForTest(HWND hwnd) {
     static std::wstring lastIcon;
     static std::wstring lastTip;
     auto iconVal = g_config.get(L"icon_path");
@@ -63,7 +63,7 @@ TEST_CASE("ApplyConfig updates tray icon on config change") {
 
     g_config.set(L"icon_path", L"icon2.ico");
     g_config.set(L"tray_tooltip", L"Tip2");
-    ApplyConfig(reinterpret_cast<HWND>(1));
+    ApplyConfigForTest(reinterpret_cast<HWND>(1));
     REQUIRE(g_loadedPath == L"icon2.ico");
     REQUIRE(g_lastTip == L"Tip2");
     REQUIRE(g_lastMsg == NIM_MODIFY);

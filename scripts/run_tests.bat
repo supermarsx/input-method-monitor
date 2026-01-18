@@ -23,11 +23,11 @@ if %ERRORLEVEL%==0 (
     echo Build finished. Checking for test binary...
     if exist build\run_tests.exe (
       echo Running CMake-built tests...
-      build\run_tests.exe
+      build\run_tests.exe %*
       exit /b %ERRORLEVEL%
     ) else if exist build\tests\run_tests.exe (
       echo Running CMake-built tests from build/tests...
-      build\tests\run_tests.exe
+      build\tests\run_tests.exe %*
       exit /b %ERRORLEVEL%
     ) else (
       echo Test binary not found after build
@@ -46,15 +46,15 @@ if %ERRORLEVEL%==0 (
 
   rem If Catch2 headers/libs are missing, try to download single-header Catch2 for compilation
   set CATCH_VENDOR_DIR=tests\vendor
-  set CATCH_HEADER=%CATCH_VENDOR_DIR%\catch2\catch.hpp
+  set CATCH_HEADER=%CATCH_VENDOR_DIR%\catch2\catch_amalgamated.hpp
   if not exist "%CATCH_HEADER%" (
-    echo Catch2 header not found. Attempting to download Catch2 v3 single-header into %CATCH_HEADER%...
+    echo Catch2 amalgamated header not found. Attempting to download Catch2 v3.4.0 into %CATCH_HEADER%...
     mkdir "%CATCH_VENDOR_DIR%\catch2" >nul 2>&1
     where curl >nul 2>&1
     if %ERRORLEVEL%==0 (
-      curl -L -o "%CATCH_HEADER%" "https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/single_include/catch2/catch.hpp" || del /q "%CATCH_HEADER%" >nul 2>&1
+      curl -L -o "%CATCH_HEADER%" "https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/extras/catch_amalgamated.hpp" || del /q "%CATCH_HEADER%" >nul 2>&1
     ) else (
-      powershell -Command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/single_include/catch2/catch.hpp' -OutFile '%CATCH_HEADER%'; exit 0 } catch { exit 1 }" || del /q "%CATCH_HEADER%" >nul 2>&1
+      powershell -Command "try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/extras/catch_amalgamated.hpp' -OutFile '%CATCH_HEADER%'; exit 0 } catch { exit 1 }" || del /q "%CATCH_HEADER%" >nul 2>&1
     )
     if not exist "%CATCH_HEADER%" (
       echo Failed to download Catch2 header. You can install Catch2 or ensure libraries are available.
@@ -69,13 +69,15 @@ if %ERRORLEVEL%==0 (
   rem Ensure a catch main file exists to provide test runner main when using single-header
   if not exist tests\catch_main.cpp (
     echo Creating tests\catch_main.cpp...
-    (echo #define CATCH_CONFIG_MAIN) > tests\catch_main.cpp
-    (echo #include "catch2/catch.hpp") >> tests\catch_main.cpp
+    (echo #include "catch2/catch_amalgamated.hpp") > tests\catch_main.cpp
+    (echo.) >> tests\catch_main.cpp
+    (echo int main(int argc, char* argv[]) { return Catch::Session().run(argc, argv); }) >> tests\catch_main.cpp
   )
 
   rem Compile tests using the downloaded single-header Catch2 (if present)
   g++ -std=c++17 -DUNIT_TEST -I tests -I resources -I %CATCH_VENDOR_DIR% ^
     tests\catch_main.cpp ^
+    tests\vendor\catch2\catch_amalgamated.cpp ^
     tests\test_configuration.cpp tests\test_log.cpp tests\test_utils.cpp tests\test_timer_guard.cpp ^
     tests\test_tray_icon.cpp tests\test_tray_icon_integration.cpp tests\test_tray_icon_update.cpp ^
     tests\test_hotkey_registry.cpp tests\test_unknown_option.cpp tests\test_config_watcher_posix.cpp tests\stubs.cpp ^
@@ -88,7 +90,7 @@ if %ERRORLEVEL%==0 (
     exit /b %ERRORLEVEL%
   )
   echo Running tests...
-  tests\run_tests
+  tests\run_tests %*
   exit /b %ERRORLEVEL%
 )
 

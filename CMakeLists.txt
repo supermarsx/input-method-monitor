@@ -85,10 +85,16 @@ target_link_libraries(kbdlayoutmonhook PRIVATE
 endif()
 
 # Unit tests
-# Attempt to find Catch2; if missing, try FetchContent then fall back to single-header download
+# Attempt to find Catch2; if missing, prefer the vendored amalgamated header before FetchContent
 include(FetchContent)
 find_package(Catch2 3 QUIET)
-if(NOT Catch2_FOUND)
+set(USE_VENDOR_CATCH2 FALSE)
+set(CATCH_VENDOR_AMALGAMATED "${CMAKE_SOURCE_DIR}/tests/vendor/catch2/catch_amalgamated.hpp")
+if(NOT Catch2_FOUND AND EXISTS "${CATCH_VENDOR_AMALGAMATED}")
+    set(USE_VENDOR_CATCH2 TRUE)
+    message(STATUS "Using vendored Catch2 amalgamated header at ${CATCH_VENDOR_AMALGAMATED}")
+endif()
+if(NOT Catch2_FOUND AND NOT USE_VENDOR_CATCH2)
     message(STATUS "Catch2 not found: Fetching Catch2 via FetchContent...")
     FetchContent_Declare(
         catch2
@@ -101,35 +107,16 @@ if(NOT Catch2_FOUND)
     set(Catch2_FOUND TRUE)
 endif()
 
-# If Catch2 is still not available (e.g., network restrictions or FetchContent disabled),
-# attempt to download single-header Catch2 into tests/vendor and create a basic
-# catch_main.cpp so tests can be built without linking Catch2 libraries.
-set(CATCH_SINGLE_HEADER "${CMAKE_SOURCE_DIR}/tests/vendor/catch2/catch.hpp")
-if(NOT Catch2_FOUND)
-    file(MAKE_DIRECTORY "${CMAKE_SOURCE_DIR}/tests/vendor/catch2")
-    message(STATUS "Catch2 not available via package or FetchContent; attempting single-header download to ${CATCH_SINGLE_HEADER}...")
-    file(DOWNLOAD "https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/single_include/catch2/catch.hpp"
-        "${CATCH_SINGLE_HEADER}"
-        SHOW_PROGRESS
-        STATUS _catch_dl_status
-        EXPECTED_HASH "")
-    list(GET _catch_dl_status 0 _catch_status_code)
-    if(NOT _catch_status_code EQUAL 0)
-        message(WARNING "Failed to download Catch2 single-header (status=${_catch_status_code}). Tests may fail if Catch2 is unavailable.")
-    else()
-        message(STATUS "Downloaded Catch2 single-header to ${CATCH_SINGLE_HEADER}")
-        set(Catch2_SINGLE_HEADER_AVAILABLE TRUE)
-        if(NOT EXISTS "${CMAKE_SOURCE_DIR}/tests/catch_main.cpp")
-            file(WRITE "${CMAKE_SOURCE_DIR}/tests/catch_main.cpp" "#define CATCH_CONFIG_MAIN\n#include \"catch2/catch.hpp\"\n")
-        endif()
+# If Catch2 is still not available, fall back to the vendored amalgamated header.
+if(NOT Catch2_FOUND AND USE_VENDOR_CATCH2)
+    if(NOT EXISTS "${CMAKE_SOURCE_DIR}/tests/catch_main.cpp")
+        file(WRITE "${CMAKE_SOURCE_DIR}/tests/catch_main.cpp" "#define CATCH_CONFIG_MAIN\n#include \"catch2/catch.hpp\"\n")
     endif()
 endif()
-
 
 set(TEST_SOURCES
     tests/test_configuration.cpp
     tests/test_log.cpp
-    tests/bench_pipe.cpp
 )
 
 set(RUN_SOURCES
@@ -142,22 +129,40 @@ if(WIN32)
         tests/test_config_watcher.cpp
         tests/test_worker_thread.cpp
         tests/test_hotkey_registry.cpp
+        tests/test_timer_guard.cpp
+        tests/test_unknown_option.cpp
+        tests/test_tray_icon.cpp
+        tests/test_tray_icon_update.cpp
+        tests/test_tray_icon_integration.cpp
         tests/stubs.cpp
     )
     # For Windows unit tests, runtime sources are kept out of the test runtime; tests use stubs.
-    list(APPEND RUN_SOURCES "tests/test_runtime_helpers.cpp" "tests/test_config_watcher_impl.cpp" "tests/test_hotkey_registry_impl.cpp" "tests/test_file_io.cpp")
+    list(APPEND RUN_SOURCES "tests/test_runtime_helpers.cpp" "tests/test_config_watcher_impl.cpp" "tests/test_hotkey_registry_impl.cpp" "tests/test_file_io.cpp" "source/tray_icon.cpp" "source/cli_utils.cpp")
 else()
     list(APPEND RUN_SOURCES source/config_watcher_posix.cpp tests/stubs.cpp)
 endif()
 
 if(Catch2_FOUND)
+    list(APPEND TEST_SOURCES tests/bench_pipe.cpp)
+endif()
+
+if(Catch2_FOUND OR USE_VENDOR_CATCH2)
     # Include both test sources and the small runtime shims directly in the test executable to
     # avoid linking C++ iostream/locale symbols from multiple static libraries which causes
     # LNK2005 duplicate-definition errors on MSVC.
     list(APPEND TEST_SOURCES ${RUN_SOURCES})
+    if(USE_VENDOR_CATCH2)
+        list(APPEND TEST_SOURCES tests/catch_main.cpp)
+        list(APPEND TEST_SOURCES tests/vendor/catch2/catch_amalgamated.cpp)
+    endif()
     add_executable(run_tests_exe EXCLUDE_FROM_ALL ${TEST_SOURCES})
-    target_include_directories(run_tests_exe PRIVATE source)
-    target_link_libraries(run_tests_exe PRIVATE Catch2::Catch2WithMain core)
+    target_include_directories(run_tests_exe PRIVATE source resources)
+    if(USE_VENDOR_CATCH2)
+        target_include_directories(run_tests_exe PRIVATE "${CMAKE_SOURCE_DIR}/tests/vendor")
+        target_link_libraries(run_tests_exe PRIVATE core)
+    else()
+        target_link_libraries(run_tests_exe PRIVATE Catch2::Catch2WithMain core)
+    endif()
     # Ensure core is built with UNIT_TEST so tests can override platform APIs via stubs
     target_compile_definitions(core PRIVATE UNIT_TEST)
     target_compile_definitions(run_tests_exe PRIVATE UNIT_TEST UNICODE _UNICODE)
@@ -171,4 +176,3 @@ if(Catch2_FOUND)
 else()
     message(STATUS "Skipping unit test target: Catch2 not available.")
 endif()
-

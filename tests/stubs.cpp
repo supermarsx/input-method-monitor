@@ -61,6 +61,11 @@ HANDLE (*pCreateFileW)(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) = [](
             std::wcout << L"pCreateFileW: matched pipe prefix, returning simulated handle" << std::endl;
             return reinterpret_cast<HANDLE>(3); // simulated pipe client handle
         }
+        if (wcsstr(path, L"kbdlayoutmon_log") != nullptr) {
+            // Allow any pipe path variant to keep pipe tests deterministic.
+            std::wcout << L"pCreateFileW: matched log pipe name, returning simulated handle" << std::endl;
+            return reinterpret_cast<HANDLE>(3);
+        }
         // Fallback: if the path contains "\\pipe\\" anywhere, treat it as a pipe
         if (wcsstr(path, L"\\\\pipe\\") != nullptr) {
             std::wcout << L"pCreateFileW: matched pipe substring, returning simulated handle" << std::endl;
@@ -124,7 +129,6 @@ DWORD (*pGetModuleFileNameW)(HINSTANCE, wchar_t*, DWORD) = [](HINSTANCE, wchar_t
 HANDLE (*pLoadImageW)(HINSTANCE, LPCWSTR, UINT, int, int, UINT) = [](HINSTANCE, LPCWSTR, UINT, int, int, UINT){ return reinterpret_cast<HANDLE>(1); };
 UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC) = [](HWND, UINT, UINT, TIMERPROC) -> UINT { return 1; };
 BOOL (*pKillTimer)(HWND, UINT) = [](HWND, UINT) -> BOOL { return TRUE; };
-BOOL (WINAPI *pShell_NotifyIcon)(DWORD, PNOTIFYICONDATA) = [](DWORD, PNOTIFYICONDATA){ return TRUE; };
 // Minimal defaults for other test-only globals
 int applyCalls = 0;
 std::atomic<bool> g_stopRequested{false};

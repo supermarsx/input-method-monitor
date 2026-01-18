@@ -10,6 +10,9 @@
 #endif
 #include "app_state.h"
 
+#ifdef UNIT_TEST
+#include "../tests/windows_stub.h"
+#endif
 #ifndef ARRAYSIZE
 #define ARRAYSIZE(A) (sizeof(A) / sizeof((A)[0]))
 #endif
@@ -42,8 +45,13 @@ TrayIcon::TrayIcon(HWND hwnd) {
             iconPath = *iconVal;
     }
     if (!iconPath.empty()) {
+#ifdef UNIT_TEST
+        auto loadImage = pLoadImageW;
+#else
+        auto loadImage = LoadImageW;
+#endif
         nid_.hIcon = reinterpret_cast<HICON>(
-            LoadImageW(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
+            loadImage(nullptr, iconPath.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
     }
     if (!nid_.hIcon) {
         nid_.hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));
@@ -80,8 +88,13 @@ void TrayIcon::Update(const std::wstring& iconPath, const std::wstring& tooltip)
 
     HICON hIcon = nullptr;
     if (!finalIcon.empty()) {
+#ifdef UNIT_TEST
+        auto loadImage = pLoadImageW;
+#else
+        auto loadImage = LoadImageW;
+#endif
         hIcon = reinterpret_cast<HICON>(
-            LoadImageW(nullptr, finalIcon.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
+            loadImage(nullptr, finalIcon.c_str(), IMAGE_ICON, 0, 0, LR_LOADFROMFILE));
     }
     if (!hIcon) {
         hIcon = LoadIcon(g_hInst, MAKEINTRESOURCE(IDI_MYAPP));

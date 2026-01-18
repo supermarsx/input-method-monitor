@@ -5,16 +5,16 @@ set -e
 # the single-header Catch2 v3.4.0 into tests/vendor/catch2/catch.hpp and create
 # a small catch_main.cpp to provide the test runner.
 VENDOR_DIR="tests/vendor"
-CATCH_HEADER="$VENDOR_DIR/catch2/catch.hpp"
+CATCH_HEADER="$VENDOR_DIR/catch2/catch_amalgamated.hpp"
 
 check_catch() {
     echo '#include <catch2/catch_test_macros.hpp>' | g++ -std=c++17 -x c++ - -fsyntax-only >/dev/null 2>&1
 }
 
 if ! check_catch; then
-    echo "Catch2 not found. Attempting to download single-header Catch2 v3.4.0 to $CATCH_HEADER..." >&2
+    echo "Catch2 not found. Attempting to download Catch2 v3.4.0 amalgamated header to $CATCH_HEADER..." >&2
     mkdir -p "$VENDOR_DIR/catch2"
-    URL="https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/single_include/catch2/catch.hpp"
+    URL="https://raw.githubusercontent.com/catchorg/Catch2/v3.4.0/extras/catch_amalgamated.hpp"
     if command -v curl >/dev/null 2>&1; then
         curl -L -s -o "$CATCH_HEADER" "$URL" || { echo "curl failed" >&2; rm -f "$CATCH_HEADER"; }
     elif command -v wget >/dev/null 2>&1; then
@@ -36,12 +36,15 @@ if ! check_catch; then
     fi
 fi
 
-# Ensure a catch main exists when using the single-header
+# Ensure a catch main exists when using the amalgamated header
 if [ ! -f tests/catch_main.cpp ]; then
     echo "Creating tests/catch_main.cpp..."
     cat > tests/catch_main.cpp <<'EOF'
-#define CATCH_CONFIG_MAIN
-#include "catch2/catch.hpp"
+#include "catch2/catch_amalgamated.hpp"
+
+int main(int argc, char* argv[]) {
+    return Catch::Session().run(argc, argv);
+}
 EOF
 fi
 
@@ -67,6 +70,7 @@ else
     # Use the downloaded single-header and catch_main.cpp
     g++ -std=c++17 -DUNIT_TEST -I tests -I resources -I "$VENDOR_DIR" \
         tests/catch_main.cpp \
+        tests/vendor/catch2/catch_amalgamated.cpp \
         tests/test_configuration.cpp tests/test_log.cpp tests/test_utils.cpp tests/test_timer_guard.cpp \
         tests/test_tray_icon.cpp tests/test_tray_icon_integration.cpp tests/test_tray_icon_update.cpp \
         tests/test_hotkey_registry.cpp tests/test_unknown_option.cpp tests/test_config_watcher_posix.cpp tests/stubs.cpp \
@@ -76,5 +80,4 @@ else
         -o tests/run_tests -pthread
 fi
 
-./tests/run_tests
-
+./tests/run_tests "$@"

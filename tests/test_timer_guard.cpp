@@ -5,8 +5,8 @@
 
 static int killed = 0;
 
-UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC) = [](HWND, UINT, UINT, TIMERPROC) -> UINT { return 1; };
-BOOL (*pKillTimer)(HWND, UINT) = [](HWND, UINT) -> BOOL { ++killed; return TRUE; };
+extern UINT (*pSetTimer)(HWND, UINT, UINT, TIMERPROC);
+extern BOOL (*pKillTimer)(HWND, UINT);
 
 TEST_CASE("TimerGuard calls KillTimer on destruction even during exception") {
     killed = 0;

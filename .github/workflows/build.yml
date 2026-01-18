@@ -37,3 +37,10 @@ jobs:
         if (!(Test-Path 'build\\Release\\kbdlayoutmonhook.dll')) { throw 'Missing DLL' }
       shell: pwsh
 
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: kbdlayoutmon-windows
+        path: |
+          build\Release\kbdlayoutmon.exe
+          build\Release\kbdlayoutmonhook.dll

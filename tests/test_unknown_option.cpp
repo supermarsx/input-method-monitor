@@ -1,9 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <filesystem>
-#include <fstream>
 #include <chrono>
 #include <thread>
 #include <atomic>
+#include "test_file_io.h"
 #include "../source/cli_utils.h"
 #include "../source/configuration.h"
 #include "../source/app_state.h"
@@ -25,9 +25,7 @@ TEST_CASE("WarnUnrecognizedOption logs error") {
     WarnUnrecognizedOption(L"--bogus-flag");
     std::this_thread::sleep_for(200ms);
 
-    std::wifstream file(logPath);
-    std::wstring content((std::istreambuf_iterator<wchar_t>(file)),
-                         std::istreambuf_iterator<wchar_t>());
+    std::wstring content = read_file_wstring_win(logPath);
     REQUIRE(content.find(L"Unrecognized option: --bogus-flag") != std::wstring::npos);
 
     g_config.set(L"log_path", L"");
