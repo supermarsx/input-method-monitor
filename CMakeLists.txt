@@ -152,7 +152,6 @@ if(Catch2_FOUND OR USE_VENDOR_CATCH2)
     # LNK2005 duplicate-definition errors on MSVC.
     list(APPEND TEST_SOURCES ${RUN_SOURCES})
     if(USE_VENDOR_CATCH2)
-        list(APPEND TEST_SOURCES tests/catch_main.cpp)
         list(APPEND TEST_SOURCES tests/vendor/catch2/catch_amalgamated.cpp)
     endif()
     add_executable(run_tests_exe EXCLUDE_FROM_ALL ${TEST_SOURCES})
