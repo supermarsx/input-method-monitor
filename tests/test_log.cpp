@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "windows_stub.h"
-extern "C" BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*);
+extern BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*);
 #include "../source/log.h"
 #include "../source/configuration.h"
 #include "../source/app_state.h"

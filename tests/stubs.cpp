@@ -73,12 +73,16 @@ HANDLE (*pCreateFileW)(LPCWSTR, DWORD, DWORD, void*, DWORD, DWORD, HANDLE) = [](
         }
     }
     // Otherwise forward to the real kernel32 CreateFileW via GetProcAddress to avoid recursion
+#ifdef _WIN32
     HMODULE h = GetModuleHandleW(L"kernel32.dll");
     if (!h) return INVALID_HANDLE_VALUE;
     using Fn = HANDLE(WINAPI*)(LPCWSTR, DWORD, DWORD, LPVOID, DWORD, DWORD, HANDLE);
     auto real = (Fn)GetProcAddress(h, "CreateFileW");
     if (!real) return INVALID_HANDLE_VALUE;
     return real(path, access, share, nullptr, disp, flags, templ);
+#else
+    return INVALID_HANDLE_VALUE;
+#endif
 };
 
 // Named pipe stubs (simulate in-process pipe handles)
@@ -96,7 +100,12 @@ BOOL (*pDisconnectNamedPipe)(HANDLE) = [](HANDLE) -> BOOL { return TRUE; };
 BOOL (*pReadFile)(HANDLE, void*, DWORD, DWORD*, void*) = [](HANDLE h, void* buf, DWORD len, DWORD* read, void*) -> BOOL {
     // For regular files, forward to real ReadFile
     if (h != reinterpret_cast<HANDLE>(3)) {
+#ifdef _WIN32
         return ::ReadFile(h, buf, len, read, nullptr);
+#else
+        if (read) *read = 0;
+        return FALSE;
+#endif
     }
     // Simulated pipe client read: no-op
     if (read) *read = 0;
@@ -118,7 +127,12 @@ BOOL (*pWriteFile)(HANDLE, const void*, DWORD, DWORD*, void*) = [](HANDLE h, con
         return TRUE;
     }
     // Otherwise forward to real WriteFile
+#ifdef _WIN32
     return ::WriteFile(h, buf, len, written, nullptr);
+#else
+    if (written) *written = len;
+    return TRUE;
+#endif
 };
 BOOL (*pReadDirectoryChangesW)(HANDLE, void*, DWORD, BOOL, DWORD, DWORD*, OVERLAPPED*, void*) = [](HANDLE, void*, DWORD, BOOL, DWORD, DWORD*, OVERLAPPED*, void*){ return TRUE; };
 BOOL (*pCancelIoEx)(HANDLE, OVERLAPPED*) = [](HANDLE, OVERLAPPED*){ return TRUE; };
@@ -135,3 +149,8 @@ std::atomic<bool> g_stopRequested{false};
 // Additional state used by config_watcher tests
 int waitCalls = 0;
 DWORD lastBytes = 0;
+
+// ApplyConfig stub needed by config_watcher_posix.cpp on non-Windows
+#ifndef _WIN32
+void ApplyConfig(HWND) { ++applyCalls; }
+#endif

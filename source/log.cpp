@@ -223,6 +223,35 @@ void WriteLog(LogLevel level, const wchar_t* message) {
             }
         }
     }
+#else
+    {
+        namespace fs = std::filesystem;
+        unsigned long long maxBytes = 10ULL * 1024ULL * 1024ULL;
+        if (auto val = g_config.get(L"max_log_size_mb")) {
+            try { maxBytes = static_cast<unsigned long long>(std::stoul(*val)) * 1024ULL * 1024ULL; } catch(...) { }
+        }
+        size_t maxBackups = 5;
+        if (auto b = g_config.get(L"max_log_backups")) {
+            try { maxBackups = std::stoul(*b); } catch(...) { }
+        }
+        try {
+            if (fs::exists(path) && fs::file_size(path) > maxBytes) {
+                for (size_t i = maxBackups; i > 0; --i) {
+                    fs::path src = path + L"." + std::to_wstring(i);
+                    if (fs::exists(src) && fs::is_regular_file(src)) {
+                        if (i == maxBackups) {
+                            fs::remove(src);
+                        } else {
+                            fs::rename(src, path + L"." + std::to_wstring(i + 1));
+                        }
+                    }
+                }
+                fs::rename(path, path + L".1");
+            }
+        } catch (...) {
+            append_with_bom_and_sharing(path, std::wstring(ts) + L" [ERROR] Failed to rotate log file.\r\n");
+        }
+    }
 #endif
 
     append_with_bom_and_sharing(path, line);

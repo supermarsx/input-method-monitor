@@ -1,5 +1,9 @@
 #pragma once
+#ifdef UNIT_TEST
+#include "../tests/windows_stub.h"
+#else
 #include <windows.h>
+#endif
 
 // Access shared application state
 #include "app_state.h"

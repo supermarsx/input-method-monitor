@@ -272,7 +272,10 @@ extern int g_sleepCalls;
 inline void Sleep(DWORD) { ++g_sleepCalls; }
 #endif
 
-// Test-controlled globals and function-pointer stubs (visible on all platforms)
+// Test-controlled globals and function-pointer stubs
+// On non-Windows these are already declared in the #else block above;
+// on Windows they must be provided here.
+#ifdef _WIN32
 extern "C" {
     extern HANDLE (*pCreateEventW)(void*, BOOL, BOOL, LPCWSTR);
     extern BOOL (*pSetEvent)(HANDLE);
@@ -293,3 +296,4 @@ extern LONG g_RegOpenKeyExResult;
 extern bool g_RegOpenKeyExFailOnSetValue;
 extern LONG g_RegSetValueExResult;
 extern int g_sleepCalls;
+#endif
